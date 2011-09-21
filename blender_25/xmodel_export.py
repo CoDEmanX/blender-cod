@@ -1,4 +1,24 @@
+"""
+(c) 2011 by CoDEmanX
+
+Version: alpha 1 (basic export functionality done)
+
+
+TODO
+
+- Material: Export COLOR, SPECCOL-BLINN?
+- Material: Improve export (data fetching)
+- Write comment lines to header
+- Add batch export of posed models (animation to model series)
+- Make armature export optional
+- Make "Apply Modifiers" optional?
+- Allow to export selection only?
+
+"""
+
+
 import bpy
+import os
 
 
 file = open(r"C:\Dokumente und Einstellungen\DN\Eigene Dateien\out.txt", "w")
@@ -18,7 +38,10 @@ def BPyMesh_meshWeight2List(vgroup, me):
 
     if not len_groupNames:
         # no verts? return a vert aligned empty list
-        return [[] for i in range(len(me.vertices))], []
+        #return [[] for i in range(len(me.vertices))], []
+        
+        return [], []
+        
     else:
         vWeightList = [[0.0] * len_groupNames for i in range(len(me.vertices))]
 
@@ -63,9 +86,17 @@ meshes_vgroup = []
 objects = []
 armature = None
 bone_mapping = {}
+materials = []
 
 ob_count = 0
 v_count = 0
+
+last_mode = bpy.context.object.mode
+
+# HACK: Force an update, so that bone tree is properly sorted for hierarchy table export
+bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
 
 
 # Check input objects, count them and convert mesh objects
@@ -82,7 +113,7 @@ for ob in bpy.data.objects:
     # Convert objects to meshes once and store
     mesh = ob.to_mesh(scene=bpy.context.scene, apply_modifiers=True, settings=modifier_quality)
     
-    if len(mesh.vertices) < 3 or len(mesh.faces) < 1 or not mesh.uv_textures:
+    if len(mesh.vertices) < 3 or len(mesh.faces) < 1 or len(ob.material_slots) < 1 or not mesh.uv_textures:
         continue
         
     meshes.append(mesh)
@@ -104,6 +135,8 @@ for ob in bpy.data.objects:
     
     objects.append(ob.name)
     
+    # TODO: Pick the first diffuse color texture
+    materials.append(ob.material_slots[0].material)
 
 if (num_verts or num_faces or len(objects)) == 0:
     file.write("// No valid data to export!\n")
@@ -138,6 +171,7 @@ else:
     # Get the root bone
     root = bones[0]
     
+    # Check for multiple roots, armature should have exactly one
     roots = 0
     for bone in bones:
         if bone.parent == None:
@@ -145,11 +179,12 @@ else:
     if roots != 1:
         file.write("// Warning: %i root bones found in armature object '%s'\n" % (roots, armature.name))
     
-
+    # Write bone hierarchy table and create bone_mapping array for later use (vertex weights)
     for i, bone in enumerate(bones):
         file.write("BONE %i %i \"%s\"\n" % (i, bone.parent_index(root)-1, bone.name))
         bone_mapping[bone.name] = i
     
+    # Write bone orientations
     for i, bone in enumerate(bones):
         file.write("\nBONE %i\n" % i)
         
@@ -188,7 +223,7 @@ for i, me in enumerate(meshes):
     if armature is not None and meshes_vgroup[i] is not None:
         
         groupNames, vWeightList = meshNormalizedWeights(meshes_vgroup[i], me)
-        groupIndices = [bone_mapping.get(g, -1) for g in groupNames]
+        groupIndices = [bone_mapping.get(g, -1) for g in groupNames] # Bind to root if there's no bone with vertex_group name
             
         weight_group_list = []
         for weights in vWeightList:
@@ -246,14 +281,11 @@ for me in meshes:
         if me.vertex_colors:
             col = me.vertex_colors.active.data[f.index]
        
-        # Reverse vert order per triangle and pray for proper face orientation
-        #for vi, v in sorted(enumerate(f.vertices), reverse=True):
-        
         # Experimental triangulation support
         f_v_orig = [v for v in enumerate(f.vertices)]
         
         if len(f_v_orig) == 3:
-            f_v_iter = (f_v_orig[2], f_v_orig[1], f_v_orig[0])
+            f_v_iter = (f_v_orig[2], f_v_orig[1], f_v_orig[0]), # HACK: trailing comma to force a tuple
         else:
             f_v_iter = (f_v_orig[2], f_v_orig[1], f_v_orig[0]), (f_v_orig[3], f_v_orig[2], f_v_orig[0])
             
@@ -263,11 +295,12 @@ for me in meshes:
             
             for vi, v in iter:
             
-                no = me.vertices[v].normal # Invert? orientation seems to have no effect...
+                no = me.vertices[v].normal # Invert? Orientation seems to have no effect...
                 
                 uv = me.uv_textures.active
                 uv1 = uv.data[f.index].uv[vi][0]
                 uv2 = 1 - uv.data[f.index].uv[vi][1] # Flip!
+                # TODO: Warn if accidentally tiling ( uv <0 or >1 )
                 
                 file.write("VERT %i\n" % (v+v_count))
                 file.write("NORMAL %.6f %.6f %.6f\n" % (no[0], no[1], no[2]))
@@ -289,8 +322,9 @@ for me in meshes:
                     
                 file.write("UV 1 %.6f %.6f\n" % (uv1, uv2))
     
-    # Face types (tris/quads) have nothing to do with vert indices!
+    # Note: Face types (tris/quads) have nothing to do with vert indices!
     v_count += len(me.vertices)
+    
     ob_count += 1
 
 
@@ -301,6 +335,44 @@ for i_ob, ob in enumerate(objects):
     file.write("OBJECT %i \"%s\"\n" % (i_ob, ob))
     
     
+file.write("\nNUMMATERIALS %i\n" % len(materials))
+
+for i_mat, mat in enumerate(materials):
+    
+    # Temporary material code
+    
+    filename = "__no_texture__.tga"
+    matname = mat.name
+    shadername = mat.diffuse_shader.capitalize()
+    
+    ts = mat.texture_slots[0]
+    if ts is not None:
+        tex = ts.texture
+        if tex is not None:
+            try:
+                if tex.image is not None:
+                    fp = tex.image.filepath
+                    filename = os.path.split(fp)[1]
+            except AttributeError:
+                filename = "__no_image_attribute__.tga"
+    
+    file.write("MATERIAL %i \"%s\" \"%s\" \"%s\"\n" % (i_mat, matname, shadername, filename))
+    file.write("COLOR 0.000000 0.000000 0.000000 1.000000\n")
+    file.write("TRANSPARENCY 0.000000 0.000000 0.000000 1.000000\n")
+    file.write("AMBIENTCOLOR 0.000000 0.000000 0.000000 1.000000\n")
+    file.write("INCANDESCENCE 0.000000 0.000000 0.000000 1.000000\n")
+    file.write("COEFFS 0.800000 0.000000\n")
+    file.write("GLOW 0.000000 0\n")
+    file.write("REFRACTIVE 6 1.000000\n")
+    file.write("SPECULARCOLOR -1.000000 -1.000000 -1.000000 1.000000\n")
+    file.write("REFLECTIVECOLOR -1.000000 -1.000000 -1.000000 1.000000\n")
+    file.write("REFLECTIVE -1 -1.000000\n")
+    file.write("BLINN -1.000000 -1.000000\n")
+    file.write("PHONG -1.000000\n\n")
+
+
+""" Write a default material?
+
 # Write material data (static for now)
 file.write("\nNUMMATERIALS 1\n")
 file.write("MATERIAL 0 \"test_mat\" \"Lambert\" \"test_mat.tga\"\n")
@@ -316,7 +388,10 @@ file.write("REFLECTIVECOLOR -1.000000 -1.000000 -1.000000 1.000000\n")
 file.write("REFLECTIVE -1 -1.000000\n")
 file.write("BLINN -1.000000 -1.000000\n")
 file.write("PHONG -1.000000\n")
+"""
 
-
-
+# Close to flush buffers!
 file.close()
+
+# Set mode back
+bpy.ops.object.mode_set(mode=last_mode, toggle=False)
