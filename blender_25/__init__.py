@@ -35,16 +35,15 @@ TODO
 bl_info = {
     "name": "CoD model/anim addon (alpha 2)",
     "author": "CoDEmanX, Flybynyt",
-    "version": (0, 2, 0),
+    "version": (0, 2, 1),
     "blender": (2, 59, 0),
     "api": 39307,
     "location": "File > Import-Export",
-    "description": "Export models to *.XMODEL_EXPORT v6",
-    "warning": "",
-    "wiki_url": "",
-    "tracker_url": "",
+    "description": "Export models to *.XMODEL_EXPORT v6 and animations to *.XANIM_EXPORT v3",
+    "warning": "Alpha version, please report errors and bugs!",
     "support": "COMMUNITY",
-    "category": "Import-Export"}
+    "category": "Import-Export"
+    }
 
 
 # To support reload properly, try to access a package var, if it's there, reload everything
@@ -232,6 +231,7 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         
         col = box.column(align=True)
         col.prop(self, "use_armature_pose")
+        col.enabled = False
         
         sub = box.column()
         sub.active = self.use_armature_pose
