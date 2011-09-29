@@ -101,6 +101,7 @@ def save(self, context, filepath="",
         for i_bone, bone in enumerate(bones):
             file.write("PART %i\n" % i_bone)
             
+            """ Doesn't seem to be right...
             if bone.parent is None:
                 file.write("OFFSET 0.000000 0.000000 0.000000\n")
                 file.write("SCALE 1.000000 1.000000 1.000000\n")
@@ -108,19 +109,21 @@ def save(self, context, filepath="",
                 file.write("Y 0.000000, 1.000000, 0.000000\n")
                 file.write("Z 0.000000, 0.000000, 1.000000\n\n")
             else:
-                b_tail = a_matrix * bone.tail
-                file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
-                file.write("SCALE 1.000000 1.000000 1.000000\n") # Is this even supported by CoD?
-                file.write("X %.6f %.6f %.6f\n" % (bone.matrix[0][0], bone.matrix[0][1], bone.matrix[0][2]))
-                file.write("Y %.6f %.6f %.6f\n" % (bone.matrix[1][0], bone.matrix[1][1], bone.matrix[1][2]))
-                file.write("Z %.6f %.6f %.6f\n\n" % (bone.matrix[2][0], bone.matrix[2][1], bone.matrix[2][2]))
-                
-                """ Is a local matrix used (above) or a global?
-                b_matrix = bone.matrix * a_matrix
-                file.write("X %.6f %.6f %.6f\n" % (b_matrix[0][0], b_matrix[0][1], b_matrix[0][2]))
-                file.write("Y %.6f %.6f %.6f\n" % (b_matrix[1][0], b_matrix[1][1], b_matrix[1][2]))
-                file.write("Z %.6f %.6f %.6f\n" % (b_matrix[2][0], b_matrix[2][1], b_matrix[2][2]))
-                """
+            """
+            
+            b_tail = a_matrix * bone.tail
+            file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
+            file.write("SCALE 1.000000 1.000000 1.000000\n") # Is this even supported by CoD?
+            file.write("X %.6f %.6f %.6f\n" % (bone.matrix[0][0], bone.matrix[0][1], bone.matrix[0][2]))
+            file.write("Y %.6f %.6f %.6f\n" % (bone.matrix[1][0], bone.matrix[1][1], bone.matrix[1][2]))
+            file.write("Z %.6f %.6f %.6f\n\n" % (bone.matrix[2][0], bone.matrix[2][1], bone.matrix[2][2]))
+            
+            """ Is a local matrix used (above) or a global?
+            b_matrix = bone.matrix * a_matrix
+            file.write("X %.6f %.6f %.6f\n" % (b_matrix[0][0], b_matrix[0][1], b_matrix[0][2]))
+            file.write("Y %.6f %.6f %.6f\n" % (b_matrix[1][0], b_matrix[1][1], b_matrix[1][2]))
+            file.write("Z %.6f %.6f %.6f\n" % (b_matrix[2][0], b_matrix[2][1], b_matrix[2][2]))
+            """
             
     # Write notetrack data
     file.write("NOTETRACKS\n\n")

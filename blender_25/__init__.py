@@ -35,7 +35,7 @@ TODO
 bl_info = {
     "name": "CoD model/anim addon (alpha 2)",
     "author": "CoDEmanX, Flybynyt",
-    "version": (0, 2, 1),
+    "version": (0, 2, 2),
     "blender": (2, 59, 0),
     "api": 39307,
     "location": "File > Import-Export",
@@ -231,10 +231,10 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         
         col = box.column(align=True)
         col.prop(self, "use_armature_pose")
-        col.enabled = False
         
         sub = box.column()
-        sub.active = self.use_armature_pose
+        #sub.active = self.use_armature_pose
+        sub.enabled = False
         
         sub.label(text="Frame range: (%i frames)" % (abs(self.use_frame_end - self.use_frame_start) + 1))
         
