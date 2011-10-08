@@ -15,9 +15,10 @@ import bpy
 from datetime import datetime
 
 def save(self, context, filepath="",
+         use_selection=False,
+         use_framerate=24,
          use_frame_start=1,
          use_frame_end=250,
-         use_framerate=24,
          use_notetracks=1
          ):
     

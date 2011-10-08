@@ -35,7 +35,7 @@ TODO
 bl_info = {
     "name": "CoD model/anim addon (alpha 2)",
     "author": "CoDEmanX, Flybynyt",
-    "version": (0, 2, 2),
+    "version": (0, 2, 3),
     "blender": (2, 59, 0),
     "api": 39307,
     "location": "File > Import-Export",
