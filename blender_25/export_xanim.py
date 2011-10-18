@@ -1,17 +1,17 @@
 """
 (c) 2011 by CoDEmanX
 
-Version: alpha 2
+Version: alpha 3
 
 
 TODO
 
-- Add *.NT_EXPORT support (CoD5 / CoD7)
 - Test pose matrix exports, global or local?
 
 """
 
 import bpy
+import os.path
 from datetime import datetime
 
 def save(self, context, filepath="",
@@ -19,7 +19,8 @@ def save(self, context, filepath="",
          use_framerate=24,
          use_frame_start=1,
          use_frame_end=250,
-         use_notetracks=1
+         use_notetracks=True,
+         use_notetrack_format='1'
          ):
     
     armature = None
@@ -126,42 +127,57 @@ def save(self, context, filepath="",
             file.write("Z %.6f %.6f %.6f\n" % (b_matrix[2][0], b_matrix[2][1], b_matrix[2][2]))
             """
             
-    # Write notetrack data
-    file.write("NOTETRACKS\n\n")
-    
     # Blender timeline markers to notetrack nodes
     markers = []
     for m in context.scene.timeline_markers:
         if frame_max >= m.frame >= frame_min:
-            markers.append(m)
+            markers.append([m.frame, m.name])
+    markers = sorted(markers)
     
-    for i_bone, bone in enumerate(bones):
-        
-        file.write("PART %i\n" % (i_bone))
-        
-        # TODO: Add *.NT_EXPORT support
-        if i_bone == 0 and use_notetracks and len(markers) > 0:
-            
-            file.write("NUMTRACKS 1\n\n")
-            file.write("NOTETRACK 0\n")
-            
-            # Sort markers by frame number
-            markers2 = []
-            for m in markers:
-                markers2.append([m.frame, m.name])
-            markers2 = sorted(markers2)
-            
-            file.write("NUMKEYS %i\n" % len(markers2))
+    # Cache marker string
+    marker_string = "NUMKEYS %i\n" % len(markers)
     
-            for m in markers2:
-                file.write("FRAME %i \"%s\"\n" % (m[0], m[1]))
-            file.write("\n")
+    for m in markers:
+        marker_string += "FRAME %i \"%s\"\n" % (m[0], m[1])
+
+    # Write notetrack data
+    if use_notetrack_format == '7':
+        # Always 0 for CoD7, no matter if there are markers or not!
+        file.write("NUMKEYS 0\n")
+    else:
+        file.write("NOTETRACKS\n\n")
+        
+        for i_bone, bone in enumerate(bones):
             
-        else:
-            file.write("NUMTRACKS 0\n\n")
+            file.write("PART %i\n" % (i_bone))
+            
+            if i_bone == 0 and use_notetracks and use_notetrack_format == '1' and len(markers) > 0:
+                
+                file.write("NUMTRACKS 1\n\n")
+                file.write("NOTETRACK 0\n")
+                file.write(marker_string)
+                file.write("\n")
+                
+            else:
+                file.write("NUMTRACKS 0\n\n")
                 
     # Close to flush buffers!
     file.close()
+    
+    if use_notetracks and use_notetrack_format in ('5', '7'):
+        
+        filepath = os.path.splitext(filepath)[0] + ".NT_EXPORT"
+        try:
+            file = open(filepath, "w")
+        except IOError:
+            return "Could not open file for writing:\n%s" % filepath
+            
+        if use_notetrack_format == '7':
+            file.write("FIRSTFRAME %i\n" % use_frame_start)
+            file.write("NUMFRAMES %i\n" % (abs(use_frame_end - use_frame_start) + 1))
+        file.write(marker_string)
+        
+        file.close()
 
     # Set frame_current and mode back
     context.scene.frame_current = last_frame_current

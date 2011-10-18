@@ -1,7 +1,7 @@
 """
 (c) 2011 by CoDEmanX
 
-Version: alpha 2
+Version: alpha 3
 
 
 TODO
@@ -33,14 +33,16 @@ TODO
 
 
 bl_info = {
-    "name": "CoD model/anim addon (alpha 2)",
+    "name": "CoD model/anim addon (alpha 3)",
     "author": "CoDEmanX, Flybynyt",
     "version": (0, 2, 3),
     "blender": (2, 59, 0),
     "api": 39307,
-    "location": "File > Import-Export",
-    "description": "Export models to *.XMODEL_EXPORT v6 and animations to *.XANIM_EXPORT v3",
+    "location": "File > Import / File > Export",
+    "description": "Export models to *.XMODEL_EXPORT and animations to *.XANIM_EXPORT for Call of Duty® modding",
     "warning": "Alpha version, please report errors and bugs!",
+    "wiki_url": "http://code.google.com/p/blender-cod/",
+    "tracker_url": "http://code.google.com/p/blender-cod/issues/list",
     "support": "COMMUNITY",
     "category": "Import-Export"
     }
@@ -130,6 +132,14 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
+    
+    use_version = EnumProperty(
+        name="Format Version",
+        description="XMODEL_EXPORT format version for export",
+        items=(('5', "Version 5", "vCoD, CoD:UO"),
+               ('6', "Version 6", "CoD2, CoD4, CoD5, CoD7")),
+        default='6',
+        )
 
     use_selection = BoolProperty(
         name="Selection Only",
@@ -159,14 +169,6 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         name="Pose animation",
         description="Export meshes with Armature modifier applied as a series of XMODEL_EXPORT files",
         default=False
-        )
-        
-    use_framerate = IntProperty(
-        name="Framerate",
-        description="Set FPS for export",
-        default=24,
-        min=1,
-        max=100
         )
         
     use_frame_start = IntProperty(
@@ -206,19 +208,22 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         
         self.use_frame_start = context.scene.frame_start
         self.use_frame_end = context.scene.frame_end
-        self.use_framerate = round(context.scene.render.fps / context.scene.render.fps_base)
         
         return super(ExportXmodel, self).invoke(context, event)
 
 
     def draw(self, context):
         layout = self.layout
+        
+        row = layout.row(align=True)
+        row.prop(self, "use_version", expand=True)
 
         col = layout.column(align=True)
         col.prop(self, "use_selection")
         col.enabled = False
         
         col = layout.column(align=True)
+        col.active = self.use_version == '6'
         col.prop(self, "use_vertex_colors")
         
         col = layout.column(align=True)
@@ -242,10 +247,7 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         row.prop(self, "use_frame_start")
         row.prop(self, "use_frame_end")
         
-        col = sub.column(align=True)
-        col.prop(self, "use_framerate")
-
-
+        
     @classmethod
     def poll(self, context):
         return (context.scene is not None)
@@ -292,15 +294,18 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         min=0
         )
         
-    #use_notetracks = BoolProperty(name="Notetracks", description="Export markers as notetracks", default=True)
-
-    use_notetracks = EnumProperty(
+    use_notetracks = BoolProperty(
         name="Notetracks",
         description="Export markers as notetracks",
-        items=(('0', "Don't export", ""),
-               ('1', "Inline (default)", "Notetrack data for all CoD versions except WaW and BO"),
-               ('5', ".NT_EXPORT (CoD5)", "Separate notetrack file for 'World at War'"),
-               ('7', ".NT_EXPORT (CoD7)", "Separate notetrack file for 'Black Ops'")),
+        default=True
+        )
+
+    use_notetrack_format = EnumProperty(
+        name="Notetrack format",
+        description="Always set 'CoD 7' for Black Ops even if there is no notetrack!",
+        items=(('5', "CoD 5", "Separate NT_EXPORT notetrack file for 'World at War'"),
+               ('7', "CoD 7", "Separate NT_EXPORT notetrack file for 'Black Ops'"),
+               ('1', "all other", "Inline notetrack data for all CoD versions except WaW and BO")),
         default='1',
         )
 
@@ -324,6 +329,8 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         self.use_frame_end = context.scene.frame_end
         self.use_framerate = round(context.scene.render.fps / context.scene.render.fps_base)
         
+        # TODO: marker count / applicable markers?
+        
         return super(ExportXanim, self).invoke(context, event)
 
 
@@ -345,11 +352,13 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         col = layout.column(align=True)
         col.prop(self, "use_framerate")
         
-        layout.label("Notetracks (%i):" % len(context.scene.timeline_markers))
+        # TODO: show markers in export range only?
+        #layout.label("Notetracks (%i):" % len(context.scene.timeline_markers))
+        col = layout.column(align=True)
+        col.prop(self, "use_notetracks", text="Notetracks (%i)" % len(context.scene.timeline_markers))
 
-        col = layout.column()
-        col.active = bool(int(self.use_notetracks))
-        col.prop(self, "use_notetracks", expand=True)
+        col = layout.column(align=True)
+        col.prop(self, "use_notetrack_format", expand=True)
         
         
     @classmethod

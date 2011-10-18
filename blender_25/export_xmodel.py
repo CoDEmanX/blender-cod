@@ -1,14 +1,14 @@
 """
 (c) 2011 by CoDEmanX
 
-Version: alpha 2
+Version: alpha 3
 
 
 TODO
 
+- Ensure valid material# / fallback (alpha 3)
 - Allow to export selection only (alpha 3)
 - Add batch export of posed models, animation to model series (alpha 3)
-- Add support for MODEL v5? (header comment and header version!)
 
 - Skip bones with influence of 0.010096 and less (too small weight!)
 Note: The final weight sum per vertex should be about 1.0.
@@ -27,12 +27,12 @@ from datetime import datetime
 weight_min = 0.010097
 
 def save(self, context, filepath="",
+         use_version='6',
          use_selection=False,
          use_vertex_colors=True,
          use_apply_modifiers=True,
          use_armature=True,
          use_armature_pose=False,
-         use_framerate=24,
          use_frame_start=1,
          use_frame_end=250,
          use_create_gdt=False
@@ -62,7 +62,6 @@ def save(self, context, filepath="",
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
 
-
     # Check input objects, count them and convert mesh objects
     for ob in bpy.data.objects:
         
@@ -89,7 +88,6 @@ def save(self, context, filepath="",
         # Restore modifier settings
         for i, mod in enumerate(ob.modifiers):
             mod.show_viewport = mod_states[i]
-
 
         # Skip invalid meshes
         if len(mesh.vertices) < 3 or len(mesh.faces) < 1 or len(ob.material_slots) < 1 or not mesh.uv_textures:
@@ -129,12 +127,12 @@ def save(self, context, filepath="",
         return "Could not open file for writing:\n%s" % filepath
 
     # Write header
-    file.write("// XMODEL_EXPORT file in CoD model v6 format created with Blender v%s\n" % bpy.app.version_string)
+    file.write("// XMODEL_EXPORT file in CoD model v%i format created with Blender v%s\n" % (int(use_version), bpy.app.version_string))
     file.write("// Source file: %s\n" % bpy.data.filepath)
     file.write("// Export time: %s\n\n" % datetime.now().strftime("%d-%b-%Y %H:%M:%S"))
 
     file.write("MODEL\n")
-    file.write("VERSION 6\n")
+    file.write("VERSION %i\n" % int(use_version))
 
 
     # Write armature data
@@ -286,7 +284,10 @@ def save(self, context, filepath="",
                 
             for iter in f_v_iter:
                 
-                file.write("TRI %i %i 0 0\n" % (ob_count, mat))    
+                if use_version == '5':
+                    file.write("TRI %i 0 %i 1\n" % (ob_count, mat))
+                else:
+                    file.write("TRI %i %i 0 0\n" % (ob_count, mat))
                 
                 for vi, v in iter:
                 
@@ -297,25 +298,28 @@ def save(self, context, filepath="",
                     uv2 = 1 - uv.data[f.index].uv[vi][1] # Flip!
                     # TODO: Warn if accidentally tiling ( uv <0 or >1 )
                     
-                    file.write("VERT %i\n" % (v+v_count))
-                    file.write("NORMAL %.6f %.6f %.6f\n" % (no[0], no[1], no[2]))
-                    
-                    if me.vertex_colors and use_vertex_colors:
-                        
-                        if vi == 0:
-                            c = col.color1
-                        elif vi == 1:
-                            c = col.color2
-                        elif vi == 2:
-                            c = col.color3
-                        else:
-                            c = col.color4
-                            
-                        file.write("COLOR %.6f %.6f %.6f 1.000000\n" % (c[0], c[1], c[2]))
+                    if use_version == '5':
+                        file.write("VERT %i %.6f %.6f %.6f %.6f %.6f\n" % (v+v_count, uv1, uv2, no[0], no[1], no[2]))
                     else:
-                        file.write("COLOR 1.000000 1.000000 1.000000 1.000000\n")
+                        file.write("VERT %i\n" % (v+v_count))
+                        file.write("NORMAL %.6f %.6f %.6f\n" % (no[0], no[1], no[2]))
                         
-                    file.write("UV 1 %.6f %.6f\n" % (uv1, uv2))
+                        if me.vertex_colors and use_vertex_colors:
+                            
+                            if vi == 0:
+                                c = col.color1
+                            elif vi == 1:
+                                c = col.color2
+                            elif vi == 2:
+                                c = col.color3
+                            else:
+                                c = col.color4
+                                
+                            file.write("COLOR %.6f %.6f %.6f 1.000000\n" % (c[0], c[1], c[2]))
+                        else:
+                            file.write("COLOR 1.000000 1.000000 1.000000 1.000000\n")
+                            
+                        file.write("UV 1 %.6f %.6f\n" % (uv1, uv2))
         
         # Note: Face types (tris/quads) have nothing to do with vert indices!
         v_count += len(me.vertices)
@@ -334,6 +338,21 @@ def save(self, context, filepath="",
     cache = ""
     c_materials = 0
     
+    # Static material string
+    material_string = ("COLOR 0.000000 0.000000 0.000000 1.000000\n"
+                       "TRANSPARENCY 0.000000 0.000000 0.000000 1.000000\n"
+                       "AMBIENTCOLOR 0.000000 0.000000 0.000000 1.000000\n"
+                       "INCANDESCENCE 0.000000 0.000000 0.000000 1.000000\n"
+                       "COEFFS 0.800000 0.000000\n"
+                       "GLOW 0.000000 0\n"
+                       "REFRACTIVE 6 1.000000\n"
+                       "SPECULARCOLOR -1.000000 -1.000000 -1.000000 1.000000\n"
+                       "REFLECTIVECOLOR -1.000000 -1.000000 -1.000000 1.000000\n"
+                       "REFLECTIVE -1 -1.000000\n"
+                       "BLINN -1.000000 -1.000000\n"
+                       "PHONG -1.000000\n\n"
+                       )
+
     for mat in materials:
         try:
             for ts in mat.texture_slots:
@@ -355,19 +374,17 @@ def save(self, context, filepath="",
         except:
             continue
         
-        cache += "MATERIAL %i \"%s\" \"%s\" \"%s\"\n" % (c_materials, mat.name, mat.diffuse_shader.capitalize(), filename)
-        cache += "COLOR 0.000000 0.000000 0.000000 1.000000\n"
-        cache += "TRANSPARENCY 0.000000 0.000000 0.000000 1.000000\n"
-        cache += "AMBIENTCOLOR 0.000000 0.000000 0.000000 1.000000\n"
-        cache += "INCANDESCENCE 0.000000 0.000000 0.000000 1.000000\n"
-        cache += "COEFFS 0.800000 0.000000\n"
-        cache += "GLOW 0.000000 0\n"
-        cache += "REFRACTIVE 6 1.000000\n"
-        cache += "SPECULARCOLOR -1.000000 -1.000000 -1.000000 1.000000\n"
-        cache += "REFLECTIVECOLOR -1.000000 -1.000000 -1.000000 1.000000\n"
-        cache += "REFLECTIVE -1 -1.000000\n"
-        cache += "BLINN -1.000000 -1.000000\n"
-        cache += "PHONG -1.000000\n\n"
+        if use_version == '5':
+            cache += "MATERIAL %i \"%s\"" % (c_materials, filename)
+            # or is it mat.name@filename?
+        else:
+            cache += "MATERIAL %i \"%s\" \"%s\" \"%s\"\n" % (
+                     c_materials,
+                     mat.name,
+                     mat.diffuse_shader.capitalize(),
+                     filename
+                     )
+            cache += material_string
         c_materials += 1
 
     if c_materials > 0:
@@ -376,20 +393,11 @@ def save(self, context, filepath="",
     else:
         # Write a default material
         file.write("\nNUMMATERIALS 1\n")
-        file.write("MATERIAL 0 \"$default\" \"Lambert\" \"untitled\"\n")
-        file.write("COLOR 0.000000 0.000000 0.000000 1.000000\n")
-        file.write("TRANSPARENCY 0.000000 0.000000 0.000000 1.000000\n")
-        file.write("AMBIENTCOLOR 0.000000 0.000000 0.000000 1.000000\n")
-        file.write("INCANDESCENCE 0.000000 0.000000 0.000000 1.000000\n")
-        file.write("COEFFS 0.800000 0.000000\n")
-        file.write("GLOW 0.000000 0\n")
-        file.write("REFRACTIVE 6 1.000000\n")
-        file.write("SPECULARCOLOR -1.000000 -1.000000 -1.000000 1.000000\n")
-        file.write("REFLECTIVECOLOR -1.000000 -1.000000 -1.000000 1.000000\n")
-        file.write("REFLECTIVE -1 -1.000000\n")
-        file.write("BLINN -1.000000 -1.000000\n")
-        file.write("PHONG -1.000000\n")
-
+        if use_version == '5':
+            file.write("MATERIAL 0 \"default.tga\"\n")
+        else:
+            file.write("MATERIAL 0 \"$default\" \"Lambert\" \"untitled\"\n")
+            file.write(material_string)
 
     # Close to flush buffers!
     file.close()
