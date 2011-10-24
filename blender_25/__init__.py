@@ -35,11 +35,11 @@ TODO
 bl_info = {
     "name": "CoD model/anim addon (alpha 3)",
     "author": "CoDEmanX, Flybynyt",
-    "version": (0, 2, 3),
+    "version": (0, 3, 0),
     "blender": (2, 59, 0),
     "api": 39307,
     "location": "File > Import / File > Export",
-    "description": "Export models to *.XMODEL_EXPORT and animations to *.XANIM_EXPORT for Call of Duty® modding",
+    "description": "Export models to *.XMODEL_EXPORT and animations to *.XANIM_EXPORT for Call of Duty modding",
     "warning": "Alpha version, please report errors and bugs!",
     "wiki_url": "http://code.google.com/p/blender-cod/",
     "tracker_url": "http://code.google.com/p/blender-cod/issues/list",
@@ -185,10 +185,6 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         min=0
         )
 
-    
-    # Not implemented
-    use_create_gdt = BoolProperty(name="Create GDT", description="Create game data file for Asset Manager", default=False)
-
 
     def execute(self, context):
         from . import export_xmodel
@@ -329,8 +325,6 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         self.use_frame_end = context.scene.frame_end
         self.use_framerate = round(context.scene.render.fps / context.scene.render.fps_base)
         
-        # TODO: marker count / applicable markers?
-        
         return super(ExportXanim, self).invoke(context, event)
 
 
@@ -352,10 +346,12 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         col = layout.column(align=True)
         col.prop(self, "use_framerate")
         
-        # TODO: show markers in export range only?
-        #layout.label("Notetracks (%i):" % len(context.scene.timeline_markers))
+        frame_min = min(self.use_frame_start, self.use_frame_end)
+        frame_max = max(self.use_frame_start, self.use_frame_end)
+        num_markers = len([m for m in context.scene.timeline_markers if frame_max >= m.frame >= frame_min])
+        
         col = layout.column(align=True)
-        col.prop(self, "use_notetracks", text="Notetracks (%i)" % len(context.scene.timeline_markers))
+        col.prop(self, "use_notetracks", text="Notetracks (%i)" % num_markers)
 
         col = layout.column(align=True)
         col.prop(self, "use_notetrack_format", expand=True)

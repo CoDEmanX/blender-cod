@@ -35,7 +35,6 @@ def save(self, context, filepath="",
          use_armature_pose=False,
          use_frame_start=1,
          use_frame_end=250,
-         use_create_gdt=False
          ):
 
     num_verts = 0
