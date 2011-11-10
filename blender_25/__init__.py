@@ -1,17 +1,4 @@
-"""
-(c) 2011 by CoDEmanX
-
-Version: alpha 3
-
-
-TODO
-
-- Enable 'Selection only' when implemented (alpha 3)
-- UI for xmodel and xanim import (planned for alpha 4/5)
-
-"""
-
-# ##### BEGIN GPL LICENSE BLOCK #####
+﻿# ##### BEGIN GPL LICENSE BLOCK #####
 #
 #  This program is free software; you can redistribute it and/or
 #  modify it under the terms of the GNU General Public License
@@ -31,16 +18,28 @@ TODO
 
 # <pep8 compliant>
 
+"""
+Blender-CoD: Blender Add-On for Call of Duty modding
+Version: alpha 3
+
+Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
+
+http://code.google.com/p/blender-cod/
+
+TODO
+- UI for xmodel and xanim import (planned for alpha 4/5)
+
+"""
 
 bl_info = {
-    "name": "CoD model/anim addon (alpha 3)",
+    "name": "Blender-CoD - Add-On for Call of Duty modding (alpha 3)",
     "author": "CoDEmanX, Flybynyt",
     "version": (0, 3, 0),
     "blender": (2, 59, 0),
     "api": 39307,
-    "location": "File > Import / File > Export",
-    "description": "Export models to *.XMODEL_EXPORT and animations to *.XANIM_EXPORT for Call of Duty modding",
-    "warning": "Alpha version, please report errors and bugs!",
+    "location": "File > Import  |  File > Export",
+    "description": "Export models to *.XMODEL_EXPORT v5/v6 and animations to *.XANIM_EXPORT v3",
+    "warning": "Alpha version, please report any bugs!",
     "wiki_url": "http://code.google.com/p/blender-cod/",
     "tracker_url": "http://code.google.com/p/blender-cod/issues/list",
     "support": "COMMUNITY",
@@ -60,16 +59,15 @@ if "bpy" in locals():
     if "export_xanim" in locals():
         imp.reload(export_xanim)
 
-
 import bpy
-from bpy.props import BoolProperty, IntProperty, StringProperty, EnumProperty
+from bpy.props import BoolProperty, IntProperty, FloatProperty, StringProperty, EnumProperty
 import bpy_extras.io_utils
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 import time
 
-""" Planned for alpha 4/5
+# Planned for alpha 4/5
 class ImportXmodel(bpy.types.Operator, ImportHelper):
-    '''Load a CoD XMODEL_EXPORT File'''
+    """Load a CoD XMODEL_EXPORT File"""
     bl_idname = "import_scene.xmodel"
     bl_label = "Import XMODEL_EXPORT"
     bl_options = {'PRESET'}
@@ -86,11 +84,13 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
 
     #use_image_search = BoolProperty(name="Image Search", description="Search subdirs for any assosiated images (Warning, may be slow)", default=True)
 
+
     def execute(self, context):
         # print("Selected: " + context.active_object.name)
         from . import import_xmodel
         
         return import_xmodel.load(self, context, **self.as_keywords(ignore=("filter_glob",)))
+
 
     def draw(self, context):
         layout = self.layout
@@ -105,7 +105,7 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
 
 
 class ImportXanim(bpy.types.Operator, ImportHelper):
-    '''Load a CoD XANIM_EXPORT File'''
+    """Load a CoD XANIM_EXPORT File"""
     bl_idname = "import_scene.xanim"
     bl_label = "Import XANIM_EXPORT"
     bl_options = {'PRESET'}
@@ -113,15 +113,16 @@ class ImportXanim(bpy.types.Operator, ImportHelper):
     filename_ext = ".XANIM_EXPORT"
     filter_glob = StringProperty(default="*.XANIM_EXPORT", options={'HIDDEN'})
     
+    
     def execute(self, context):
         # print("Selected: " + context.active_object.name)
         from . import import_xanim
-
+        
         return import_xanim.load(self, context, **self.as_keywords(ignore=("filter_glob",)))
-"""
+
 
 class ExportXmodel(bpy.types.Operator, ExportHelper):
-    '''Save a CoD XMODEL_EXPORT File'''
+    """Save a CoD XMODEL_EXPORT File"""
 
     bl_idname = "export_scene.xmodel"
     bl_label = 'Export XMODEL_EXPORT'
@@ -142,8 +143,8 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         )
 
     use_selection = BoolProperty(
-        name="Selection Only",
-        description="Export selected objects only",
+        name="Selection only",
+        description="Export selected meshes only (object or weight paint mode)",
         default=False
         )
         
@@ -185,6 +186,20 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         min=0
         )
 
+    use_weight_min = BoolProperty(
+        name="Minimum bone weight",
+        description="Try this if you get 'too small weight' errors when converting",
+        default=False,
+        )
+
+    use_weight_min_threshold = FloatProperty(
+        name="Threshold",
+        description="Smallest allowed weight (minimum value)",
+        default=0.010097,
+        min=0.0,
+        max=1.0
+        )
+
 
     def execute(self, context):
         from . import export_xmodel
@@ -213,10 +228,16 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         
         row = layout.row(align=True)
         row.prop(self, "use_version", expand=True)
-
+        
+        # Calculate number of selected mesh objects
+        if context.mode in ('OBJECT', 'PAINT_WEIGHT'):
+            meshes_selected = len([m for m in bpy.data.objects if m.type == 'MESH' and m.select])
+        else:
+            meshes_selected = 0
+        
         col = layout.column(align=True)
-        col.prop(self, "use_selection")
-        col.enabled = False
+        col.prop(self, "use_selection", "Selection only (%i meshes)" % meshes_selected)
+        col.enabled = bool(meshes_selected)
         
         col = layout.column(align=True)
         col.active = self.use_version == '6'
@@ -227,6 +248,9 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         
         col = layout.column(align=True)
         col.prop(self, "use_armature")
+        
+        col = layout.column(align=True)
+        col.label("Advanced:")
         
         box = layout.box()
         
@@ -243,6 +267,15 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         row.prop(self, "use_frame_start")
         row.prop(self, "use_frame_end")
         
+        box = layout.box()
+        
+        col = box.column(align=True)
+        col.prop(self, "use_weight_min")
+
+        sub = box.column()
+        sub.enabled = self.use_weight_min
+        sub.prop(self, "use_weight_min_threshold")
+        
         
     @classmethod
     def poll(self, context):
@@ -250,7 +283,7 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
 
 
 class ExportXanim(bpy.types.Operator, ExportHelper):
-    '''Save a XMODEL_XANIM File'''
+    """Save a XMODEL_XANIM File"""
 
     bl_idname = "export_scene.xanim"
     bl_label = 'Export XANIM_EXPORT'
@@ -263,8 +296,8 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
     # to the class instance from the operator settings before calling.
 
     use_selection = BoolProperty(
-        name="Selection Only",
-        description="Export selected bones only",
+        name="Selection only",
+        description="Export selected bones only (pose mode)",
         default=False
         )
     
@@ -305,6 +338,7 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         default='1',
         )
 
+
     def execute(self, context):
         from . import export_xanim
         start_time = time.clock()
@@ -332,10 +366,30 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         
         layout = self.layout
         
-        # TODO: Either add a bone list with checkboxes or support selected_bones
+        bones_selected = 0
+        armature = None
+        
+        # Take the first armature
+        for ob in bpy.data.objects:
+            if ob.type == 'ARMATURE' and len(ob.data.bones) > 0:
+                armature = ob.data
+                
+                # Calculate number of selected bones if in pose-mode
+                if context.mode == 'POSE':
+                    bones_selected = len([b for b in armature.bones if b.select])
+                    
+                # Prepare info string
+                armature_info = "%s (%i bones)" % (ob.name, len(armature.bones))
+                break
+        else:
+            armature_info = "Not found!"
+            
         col = layout.column(align=True)
-        col.prop(self, "use_selection")
-        col.enabled = False
+        col.label("Armature: %s" % armature_info)
+        
+        col = layout.column(align=True)
+        col.prop(self, "use_selection", "Selection only (%i bones)" % bones_selected)
+        col.enabled = bool(bones_selected)
         
         layout.label(text="Frame range: (%i frames)" % (abs(self.use_frame_end - self.use_frame_start) + 1))
         
@@ -346,13 +400,14 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         col = layout.column(align=True)
         col.prop(self, "use_framerate")
         
+        # Calculate number of markers in export range
         frame_min = min(self.use_frame_start, self.use_frame_end)
         frame_max = max(self.use_frame_start, self.use_frame_end)
         num_markers = len([m for m in context.scene.timeline_markers if frame_max >= m.frame >= frame_min])
         
         col = layout.column(align=True)
         col.prop(self, "use_notetracks", text="Notetracks (%i)" % num_markers)
-
+        
         col = layout.column(align=True)
         col.prop(self, "use_notetrack_format", expand=True)
         
@@ -374,7 +429,6 @@ def menu_func_xmodel_export(self, context):
     
 def menu_func_xanim_export(self, context):
     self.layout.operator(ExportXanim.bl_idname, text="CoD Xanim (.XANIM_EXPORT)")
-
 
 
 def register():

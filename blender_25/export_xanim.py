@@ -1,11 +1,32 @@
-"""
-(c) 2011 by CoDEmanX
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
 
+# <pep8 compliant>
+
+"""
+Blender-CoD: Blender Add-On for Call of Duty modding
 Version: alpha 3
 
+Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
+
+http://code.google.com/p/blender-cod/
 
 TODO
-
 - Test pose matrix exports, global or local?
 
 """
@@ -45,10 +66,13 @@ def save(self, context, filepath="",
             armature = ob
             break
     else:
-        return "No armature to export.";
+        return "No armature to export."
         
-    # armature.pose.bones?
-    bones = armature.data.bones
+    # Get the wanted bones
+    if use_selection:
+        bones = [b for b in armature.data.bones if b.select]
+    else:
+        bones = armature.data.bones
     
     # Get armature matrix once for later global coords/matrices calculation per frame
     a_matrix = armature.matrix_world
@@ -72,7 +96,7 @@ def save(self, context, filepath="",
     for i_bone, bone in enumerate(bones):
         file.write("PART %i \"%s\"\n" % (i_bone, bone.name))
     
-    # Exporter should use Blender's framerate (render settings, used as playback speed)
+    # Exporter shall use Blender's framerate (render settings, used as playback speed)
     # Note: Time remapping not taken into account
     file.write("\nFRAMERATE %i\n" % use_framerate)
 
@@ -97,10 +121,18 @@ def save(self, context, filepath="",
         context.scene.frame_current = frame
         
         # Get PoseBones for that frame
-        bones = armature.pose.bones
+        if use_selection:
+            bones = [b for b in armature.pose.bones if b.bone.select]
+        else:
+            bones = armature.pose.bones
         
         # Write bone orientations
         for i_bone, bone in enumerate(bones):
+            
+            # Skip bone if 'Selection only' is enabled and bone not selected
+            if use_selection and not bone.bone.select: # It's actually posebone.bone!
+                continue
+                
             file.write("PART %i\n" % i_bone)
             
             """ Doesn't seem to be right...

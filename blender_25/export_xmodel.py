@@ -1,30 +1,40 @@
-"""
-(c) 2011 by CoDEmanX
+﻿# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
 
+# <pep8 compliant>
+
+"""
+Blender-CoD: Blender Add-On for Call of Duty modding
 Version: alpha 3
 
+Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
+
+http://code.google.com/p/blender-cod/
 
 TODO
-
 - Ensure valid material# / fallback (alpha 3)
-- Allow to export selection only (alpha 3)
 - Add batch export of posed models, animation to model series (alpha 3)
-
-- Skip bones with influence of 0.010096 and less (too small weight!)
-Note: The final weight sum per vertex should be about 1.0.
-The script sets too small weights to 0.0 BEFORE calculating weight/total weight.
-This should work in most situtions, but it might give weight sums <> 1.0
-(e.g. weight is > required minimum, but becomes < after division, sum will be < 1.0)
-Would something like LOOP(normalize, drop too small weights) work???
 
 """
 
 import bpy
 import os
 from datetime import datetime
-
-# Global var, smallest allowed bone weight
-weight_min = 0.010097
 
 def save(self, context, filepath="",
          use_version='6',
@@ -35,6 +45,8 @@ def save(self, context, filepath="",
          use_armature_pose=False,
          use_frame_start=1,
          use_frame_end=250,
+         use_weight_min=False,
+         use_weight_min_threshold=0.010097
          ):
 
     num_verts = 0
@@ -70,6 +82,10 @@ def save(self, context, filepath="",
             continue
         
         if ob.type != 'MESH':
+            continue
+            
+        # Skip meshes, which are unselected
+        if use_selection and not ob.select:
             continue
         
         # Set up modifiers whether to apply deformation or not
@@ -117,7 +133,12 @@ def save(self, context, filepath="",
                 materials.append(ms.material)
 
     if (num_verts or num_faces or len(objects)) == 0:
-        return "Nothing to export.\nMeshes must have at least:\n    3 vertices\n    1 face\n    1 material\n    UV mapping"
+        return "Nothing to export.\n" \
+               "Meshes must have at least:\n" \
+               "    3 vertices\n" \
+               "    1 face\n" \
+               "    1 material\n" \
+               "    UV mapping"
 
     # There's valid data for export, create output file
     try:
@@ -129,6 +150,9 @@ def save(self, context, filepath="",
     file.write("// XMODEL_EXPORT file in CoD model v%i format created with Blender v%s\n" % (int(use_version), bpy.app.version_string))
     file.write("// Source file: %s\n" % bpy.data.filepath)
     file.write("// Export time: %s\n\n" % datetime.now().strftime("%d-%b-%Y %H:%M:%S"))
+    
+    if use_weight_min:
+        file.write("// Minimum bone weight: %f\n\n" % use_weight_min_threshold)
 
     file.write("MODEL\n")
     file.write("VERSION %i\n" % int(use_version))
@@ -214,7 +238,7 @@ def save(self, context, filepath="",
         # Get bone influences per vertex
         if armature is not None and meshes_vgroup[i] is not None:
             
-            groupNames, vWeightList = meshNormalizedWeights(meshes_vgroup[i], me)
+            groupNames, vWeightList = meshNormalizedWeights(meshes_vgroup[i], me, use_weight_min, use_weight_min_threshold)
             groupIndices = [bone_mapping.get(g, -1) for g in groupNames] # Bind to root if there's no bone with vertex_group name
                 
             weight_group_list = []
@@ -241,7 +265,7 @@ def save(self, context, filepath="",
                 cache = ""
                 c_bones = 0
                 for weight, bone_index in weight_group_list[v.index]:
-                    if round(weight, 6) < weight_min:
+                    if use_weight_min and round(weight, 6) < use_weight_min_threshold:
                         break
                     cache += "BONE %i %.6f\n" % (bone_index, weight)
                     c_bones += 1
@@ -439,8 +463,8 @@ def BPyMesh_meshWeight2List(vgroup, me):
     return groupNames, vWeightList
 
 
-def meshNormalizedWeights(vgroup, me):
-
+def meshNormalizedWeights(vgroup, me, weight_min, weight_min_threshold):
+    
     groupNames, vWeightList = BPyMesh_meshWeight2List(vgroup, me)
 
     if not groupNames:
@@ -449,7 +473,7 @@ def meshNormalizedWeights(vgroup, me):
     for vWeights in vWeightList:
         tot = 0.0
         for w in vWeights:
-            if w < weight_min:
+            if weight_min and w < weight_min_threshold:
                 w = 0.0
             tot += w
 

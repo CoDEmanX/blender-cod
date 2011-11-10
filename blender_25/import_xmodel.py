@@ -1,46 +1,51 @@
-##########################################
-# THIS IS ALPHA QUALITY AT MOST!
+# ##### BEGIN GPL LICENSE BLOCK #####
 #
-# Importing rigs from XMODEL_EXPORT works,
-# but the code is really messy!
-##########################################
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
 
-# Script copyright (C) ??
-# Contributors: Flybynyt ??
+# <pep8 compliant>
 
 """
-This script imports Call of Duty XMODEL_EXPORT v6 files to Blender.
+Blender-CoD: Blender Add-On for Call of Duty modding
+Version: alpha 3
 
-Usage:
-Run this script from "File->Import" menu and then load the desired XMODEL_EXPORT file.
-Notes?
+Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
 
-http://
+http://code.google.com/p/blender-cod/
+
+NOTES
+- Code is in early state of development and work in progress!
+- Importing rigs from XMODEL_EXPORT v6 works, but the code is really messy.
+
+TODO
+- Implement full xmodel import
 
 """
 
 import os
 import time
 import bpy
-#import mathutils
 from mathutils import *
 #from mathutils.geometry import tesselate_polygon
 #from io_utils import load_image, unpack_list, unpack_face_list
-
 
 test_0 = []
 test_1 = []
 test_2 = []
 test_3 = []
-
-
-def round_matrix(mat, precision=6):
-	if len(mat) == 3 and mat.col_size == 3:
-		return Matrix(((round(mat[0][0],precision), round(mat[0][1],precision), round(mat[0][2],precision)), (round(mat[1][0],precision), round(mat[1][1],precision), round(mat[1][2],precision)), (round(mat[2][0],precision), round(mat[2][1],precision), round(mat[2][2],precision))))
-	elif len(mat) == 4 and mat.col_size == 4:
-		return Matrix(((round(mat[0][0],precision), round(mat[0][1],precision), round(mat[0][2],precision), round(mat[0][3],precision)), (round(mat[1][0],precision), round(mat[1][1],precision), round(mat[1][2],precision), round(mat[1][3],precision)), (round(mat[2][0],precision), round(mat[2][1],precision), round(mat[2][2],precision), round(mat[2][3],precision)), (round(mat[3][0],precision), round(mat[3][1],precision), round(mat[3][2],precision), round(mat[3][3],precision))))
-	else:
-		assert False
 
 def round_matrix_3x3(mat, precision=6):
 	return Matrix(((round(mat[0][0],precision), round(mat[0][1],precision), round(mat[0][2],precision)),
@@ -73,8 +78,7 @@ def load(operator, context, filepath,
 	
 	out = open('C:\\Users\\SAM\\__log.txt', 'w')
 	
-	# %r or %s ??
-	out.write('\nImporting %r' % filepath)
+	out.write('\nImporting %s' % filepath)
 	
 	# messure import time
 	time_start = time.time()
@@ -146,19 +150,10 @@ def load(operator, context, filepath,
 			line_split = line.replace(',', '').split()
 			bone_table[bone_i][3][0] = Vector((float(line_split[1]), float(line_split[2]), float(line_split[3])))
 
-			""" FORGET THIS:
-			zero_roll_is_neg = zero_roll_matrix_vector_x < 0
-			is_neg = bone_i[3][0].cross(zero_roll_matrix_vector_x)[0] < 0
-			if zero_roll_is_neg != is_neg:
-				roll = abs(zero_roll_matrix_vector_x.angle(bone_i[3][0])-360)
-			else:
-				roll = zero_roll_matrix_vector_x.angle(bone_i[3][0])
-			out.write('\nBone roll: ' + roll)
-			--- AND USE THIS:
+			""" Use something like this:
 			bone.align_roll(targetmatrix[2])
 			roll = roll%360 #nicer to have it 0-359.99...
 			"""
-
 			state = 8
 			
 		elif state == 8 and line_split[0] == 'Y':
