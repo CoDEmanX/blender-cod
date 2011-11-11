@@ -28,7 +28,6 @@ http://code.google.com/p/blender-cod/
 
 TODO
 - Ensure valid material# / fallback (alpha 3)
-- Add batch export of posed models, animation to model series (alpha 3)
 
 """
 
@@ -48,6 +47,106 @@ def save(self, context, filepath="",
          use_weight_min=False,
          use_weight_min_threshold=0.010097
          ):
+    
+    # There's no context object right after object deletion, need to set one
+    if context.object:
+        last_mode = context.object.mode
+    else:
+        last_mode = 'OBJECT'
+        
+        for ob in bpy.data.objects:
+            if ob.type == 'MESH':
+                context.scene.objects.active = ob
+                break
+        else:
+            return "No mesh to export."
+
+    # HACK: Force an update, so that bone tree is properly sorted for hierarchy table export
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
+    # Remember frame to set it back after export
+    last_frame_current = context.scene.frame_current
+
+    # Don't iterate for a single frame
+    if not use_armature_pose or (use_armature_pose and use_frame_start == use_frame_end):
+        context.scene.frame_set(use_frame_start)
+                    
+        result = _write(self, context, filepath,
+                      use_version,
+                      use_selection,
+                      use_vertex_colors,
+                      use_apply_modifiers,
+                      use_armature,
+                      use_armature_pose,
+                      use_weight_min,
+                      use_weight_min_threshold
+                      )
+    else:
+        
+        if use_frame_start < use_frame_end:
+            frame_order = 1
+            frame_min = use_frame_start
+            frame_max = use_frame_end
+        else:
+            frame_order = -1
+            frame_min = use_frame_end
+            frame_max = use_frame_start
+        
+        # String length of highest frame number for filename padding
+        frame_strlen = len(str(frame_max))
+        
+        filepath_split = os.path.splitext(filepath)
+
+        for i_frame, frame in enumerate(range(use_frame_start,
+                                              use_frame_end + frame_order,
+                                              frame_order
+                                              ),
+                                        frame_min
+                                        ):
+            # Set frame for export
+            # Don't do it directly to frame_current, as to_mesh() won't use updated frame!
+            context.scene.frame_set(frame)
+            
+            # Generate filename including padded frame number
+            filepath_frame = "%s_%.*i%s" % (filepath_split[0], frame_strlen, i_frame, filepath_split[1])
+            
+            result = _write(self, context, filepath_frame,
+                   use_version,
+                   use_selection,
+                   use_vertex_colors,
+                   use_apply_modifiers,
+                   use_armature,
+                   use_armature_pose,
+                   use_weight_min,
+                   use_weight_min_threshold
+                   )
+                    
+            # Quit iteration on error
+            if result:
+                context.scene.frame_set(last_frame_current)
+                return result
+               
+    # Set frame back
+    context.scene.frame_set(last_frame_current)
+    
+    # Set mode back
+    bpy.ops.object.mode_set(mode=last_mode, toggle=False)
+
+    # Handle possible error result of single frame export
+    return result
+    
+
+def _write(self, context, filepath,
+         use_version,
+         use_selection,
+         use_vertex_colors,
+         use_apply_modifiers,
+         use_armature,
+         use_armature_pose,
+         use_weight_min,
+         use_weight_min_threshold
+         ):
 
     num_verts = 0
     num_faces = 0
@@ -61,16 +160,6 @@ def save(self, context, filepath="",
 
     ob_count = 0
     v_count = 0
-
-    # There's no context object right after object deletion
-    try:
-        last_mode = context.object.mode
-    except (AttributeError):
-        last_mode = 'OBJECT'
-
-    # HACK: Force an update, so that bone tree is properly sorted for hierarchy table export
-    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
 
     # Check input objects, count them and convert mesh objects
@@ -151,6 +240,9 @@ def save(self, context, filepath="",
     file.write("// Source file: %s\n" % bpy.data.filepath)
     file.write("// Export time: %s\n\n" % datetime.now().strftime("%d-%b-%Y %H:%M:%S"))
     
+    if use_armature_pose:
+        file.write("// Posed model of frame %i\n\n" % bpy.context.scene.frame_current)
+
     if use_weight_min:
         file.write("// Minimum bone weight: %f\n\n" % use_weight_min_threshold)
 
@@ -271,7 +363,9 @@ def save(self, context, filepath="",
                     c_bones += 1
                     
                 if c_bones == 0:
-                    file.write("// Warning: No bone influence found for vertex %i, binding to root...\n" % v.index)
+                    warning_string = "// Warning: No bone influence found for vertex %i, binding to root...\n" % v.index
+                    print(warning_string)
+                    file.write(warning_string)
                     file.write("BONES 1\n")
                     file.write("BONE 0 1.000000\n\n")
                 else:
@@ -424,9 +518,11 @@ def save(self, context, filepath="",
 
     # Close to flush buffers!
     file.close()
-
-    # Set mode back
-    bpy.ops.object.mode_set(mode=last_mode, toggle=False)
+    
+    # Remove meshes, which were made by to_mesh()
+    for mesh in meshes:
+        mesh.user_clear()
+        bpy.data.meshes.remove(mesh)    
     
     # Quit with no errors
     return

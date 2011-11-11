@@ -167,7 +167,7 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         )
         
     use_armature_pose = BoolProperty(
-        name="Pose animation",
+        name="Pose animation to models",
         description="Export meshes with Armature modifier applied as a series of XMODEL_EXPORT files",
         default=False
         )
@@ -247,8 +247,11 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         col.prop(self, "use_apply_modifiers")
         
         col = layout.column(align=True)
-        col.prop(self, "use_armature")
-        
+        if self.use_armature and self.use_armature_pose:
+            col.prop(self, "use_armature", "Armature  (should be disabled)")
+        else:
+            col.prop(self, "use_armature")
+
         col = layout.column(align=True)
         col.label("Advanced:")
         
@@ -258,9 +261,7 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         col.prop(self, "use_armature_pose")
         
         sub = box.column()
-        #sub.active = self.use_armature_pose
-        sub.enabled = False
-        
+        sub.active = self.use_armature_pose
         sub.label(text="Frame range: (%i frames)" % (abs(self.use_frame_end - self.use_frame_start) + 1))
         
         row = sub.row(align=True)
@@ -275,6 +276,7 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         sub = box.column()
         sub.enabled = self.use_weight_min
         sub.prop(self, "use_weight_min_threshold")
+        sub.label("More precise: %s" % str(round(self.use_weight_min_threshold, 6))) # More precise display
         
         
     @classmethod

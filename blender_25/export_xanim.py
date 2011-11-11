@@ -84,7 +84,8 @@ def save(self, context, filepath="",
         return "Could not open file for writing:\n%s" % filepath
     
      # write the header
-    file.write("// XANIM_EXPORT file in CoD animation v3 format created with Blender v%s\n" % bpy.app.version_string)
+    file.write("// XANIM_EXPORT file in CoD animation v3 format created with Blender v%s\n" \
+               % bpy.app.version_string)
     file.write("// Source file: %s\n" % filepath)
     file.write("// Export time: %s\n\n" % datetime.now().strftime("%d-%b-%Y %H:%M:%S"))
     file.write("ANIMATION\n")
@@ -103,22 +104,25 @@ def save(self, context, filepath="",
     file.write("NUMFRAMES %i\n\n" % (abs(use_frame_start - use_frame_end) + 1))
     
 
-    # If start frame > end frame, export animation reversed
-    if use_frame_start > use_frame_end:
-        frame_order = -1
-        frame_min = use_frame_end
-        frame_max = use_frame_start
-    else:
+    # If start frame greater than end frame, export animation reversed
+    if use_frame_start < use_frame_end:
         frame_order = 1
         frame_min = use_frame_start
         frame_max = use_frame_end
+    else:
+        frame_order = -1
+        frame_min = use_frame_end
+        frame_max = use_frame_start
 
-    for i_frame, frame in enumerate(range(use_frame_start, use_frame_end + frame_order, frame_order), use_frame_start):
+    for i_frame, frame in enumerate(range(use_frame_start,
+                                          use_frame_end + frame_order,
+                                          frame_order),
+                                    frame_min):
 
         file.write("FRAME %i\n" % i_frame)
         
         # Set frame directly
-        context.scene.frame_current = frame
+        context.scene.frame_set(frame)
         
         # Get PoseBones for that frame
         if use_selection:
@@ -212,7 +216,7 @@ def save(self, context, filepath="",
         file.close()
 
     # Set frame_current and mode back
-    context.scene.frame_current = last_frame_current
+    context.scene.frame_set(last_frame_current)
     bpy.ops.object.mode_set(mode=last_mode, toggle=False)
     
     # Quit with no errors
