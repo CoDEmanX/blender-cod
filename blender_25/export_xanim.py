@@ -47,18 +47,23 @@ def save(self, context, filepath="",
     armature = None
     last_frame_current = context.scene.frame_current
     
-    # There's no context object right after object deletion
-    try:
+    # There's no context object right after object deletion, need to set one
+    if context.object:
         last_mode = context.object.mode
-    except (AttributeError):
+    else:
         last_mode = 'OBJECT'
+        
+        if bpy.data.objects:
+            context.scene.objects.active = bpy.data.objects[0]
+        else:
+            return "Nothing to export."
 
     # HACK: Force an update, so that bone tree is properly sorted for hierarchy table export
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
 
-    # Check input objects
+    # Check input objects, don't move this above hack!
     for ob in bpy.data.objects:
         
         # Take the first armature

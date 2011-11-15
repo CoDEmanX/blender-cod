@@ -26,9 +26,6 @@ Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
 
 http://code.google.com/p/blender-cod/
 
-TODO
-- Ensure valid material# / fallback (alpha 3)
-
 """
 
 import bpy
@@ -157,6 +154,8 @@ def _write(self, context, filepath,
     armature = None
     bone_mapping = {}
     materials = []
+    materials_in_use=[]
+    materials_index = []
 
     ob_count = 0
     v_count = 0
@@ -218,8 +217,8 @@ def _write(self, context, filepath,
         
         # Store all used materials (unique)
         for ms in ob.material_slots:
-            if ms.material not in materials:
-                materials.append(ms.material)
+            if ms.material not in materials_in_use:
+                materials_in_use.append(ms.material)
 
     if (num_verts or num_faces or len(objects)) == 0:
         return "Nothing to export.\n" \
@@ -228,7 +227,38 @@ def _write(self, context, filepath,
                "    1 face\n" \
                "    1 material\n" \
                "    UV mapping"
-
+    
+    # Check materials and prepare
+    for i_mat, mat in enumerate(bpy.data.materials):
+        
+        # Only export actually required materials
+        if mat not in materials_in_use:
+            continue
+        try:
+            for i_ts, ts in enumerate(mat.texture_slots):
+                
+                # Skip empty slots and disabled textures
+                if not ts or not mat.use_textures[i_ts]:
+                    continue
+                    
+                # Image type and Color map? If yes, add to material array and index
+                if ts.texture.type == 'IMAGE' and ts.use_map_color_diffuse:
+                    
+                    # Pick filename of the first color map
+                    imagepath = ts.texture.image.filepath
+                    imagename = os.path.split(imagepath)[1]
+                    if len(imagename) == 0:
+                        imagename = "untitled"
+                    
+                    materials.append([mat.name, mat.diffuse_shader.capitalize(), imagename])
+                    materials_index.append(i_mat)
+                    break
+            else:
+                raise(ValueError)
+                
+        except:
+            continue
+    
     # There's valid data for export, create output file
     try:
         file = open(filepath, "w")
@@ -266,9 +296,10 @@ def _write(self, context, filepath,
         
     else:
         
-        # TODO: Test this!
+        # Either use posed armature bones for animation to model sequence export
         if use_armature_pose:
             bones = armature.pose.bones
+        # Or armature bones in rest pose for regular rigged models
         else:
             bones = armature.data.bones
             
@@ -357,27 +388,30 @@ def _write(self, context, filepath,
                 cache = ""
                 c_bones = 0
                 for weight, bone_index in weight_group_list[v.index]:
-                    if use_weight_min and round(weight, 6) < use_weight_min_threshold:
+                    if (use_weight_min and round(weight, 6) < use_weight_min_threshold) or \
+                       (not use_weight_min and round(weight, 6) == 0):
+                        # No (more) bones with enough weight, totalweight of 0 would lead to error
                         break
                     cache += "BONE %i %.6f\n" % (bone_index, weight)
                     c_bones += 1
                     
                 if c_bones == 0:
-                    warning_string = "// Warning: No bone influence found for vertex %i, binding to root...\n" % v.index
+                    warning_string = "// Warning: No bone influence found for vertex %i, binding to bone %i\n" \
+                                     % (v.index, bone_index)
                     print(warning_string)
                     file.write(warning_string)
                     file.write("BONES 1\n")
-                    file.write("BONE 0 1.000000\n\n")
+                    file.write("BONE %i 0.000001\n\n" % bone_index) # HACK: Is a minimum weight a good idea?
                 else:
                     file.write("BONES %i\n%s\n" % (c_bones, cache))
             
             
         v_count += len(verts);
 
-    # TODO: Find a proper way to keep track of the vertex index?   
+
+    # TODO: Find a better way to keep track of the vertex index?   
     v_count = 0
-
-
+    
     # Write face data
     file.write("\nNUMFACES %i\n" % num_faces)
 
@@ -385,8 +419,11 @@ def _write(self, context, filepath,
 
         for f in me.faces:
             
-            # TODO: Remap!
-            mat = f.material_index
+            try:
+                mat = materials_index.index(f.material_index)
+            except ValueError:
+                # Material not mapped, fall back to first
+                mat = 0
             
             if me.vertex_colors:
                 col = me.vertex_colors.active.data[f.index]
@@ -413,6 +450,8 @@ def _write(self, context, filepath,
                     uv = me.uv_textures.active
                     uv1 = uv.data[f.index].uv[vi][0]
                     uv2 = 1 - uv.data[f.index].uv[vi][1] # Flip!
+                    
+                    #if 0 > uv1 > 1 
                     # TODO: Warn if accidentally tiling ( uv <0 or >1 )
                     
                     if use_version == '5':
@@ -450,11 +489,6 @@ def _write(self, context, filepath,
     for i_ob, ob in enumerate(objects):
         file.write("OBJECT %i \"%s\"\n" % (i_ob, ob))
         
-        
-    # Write material data
-    cache = ""
-    c_materials = 0
-    
     # Static material string
     material_string = ("COLOR 0.000000 0.000000 0.000000 1.000000\n"
                        "TRANSPARENCY 0.000000 0.000000 0.000000 1.000000\n"
@@ -470,43 +504,22 @@ def _write(self, context, filepath,
                        "PHONG -1.000000\n\n"
                        )
 
-    for mat in materials:
-        try:
-            for ts in mat.texture_slots:
-                # Skip empty slots
-                if not ts:
-                    continue
-                    
-                # Pick filename of the first color map
-                if ts.use_map_color_diffuse:
-                    filepath = ts.texture.image.filepath
-                    filename = os.path.split(filepath)[1]
-                    if len(filename) == 0:
-                        filename = "untitled"
-                        #raise(ValueError)
-                    break
-            else:
-                raise(ValueError)
-                
-        except:
-            continue
+    if len(materials) > 0:
+        file.write("\nNUMMATERIALS %i\n" % len(materials))
         
-        if use_version == '5':
-            cache += "MATERIAL %i \"%s\"" % (c_materials, filename)
-            # or is it mat.name@filename?
-        else:
-            cache += "MATERIAL %i \"%s\" \"%s\" \"%s\"\n" % (
-                     c_materials,
-                     mat.name,
-                     mat.diffuse_shader.capitalize(),
-                     filename
-                     )
-            cache += material_string
-        c_materials += 1
-
-    if c_materials > 0:
-        file.write("\nNUMMATERIALS %i\n" % c_materials)
-        file.write(cache)
+        for i_mat, (mat_name, mat_shader, filename) in enumerate(materials):
+            
+            if use_version == '5':
+                file.write("MATERIAL %i \"%s\"\n" % (i_mat, filename))
+                # or is it mat.name@filename?
+            else:
+                file.write("MATERIAL %i \"%s\" \"%s\" \"%s\"\n" % (
+                           i_mat,
+                           mat_name,
+                           mat_shader,
+                           filename
+                           ))
+                file.write(material_string)
     else:
         # Write a default material
         file.write("\nNUMMATERIALS 1\n")
