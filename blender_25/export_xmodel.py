@@ -70,15 +70,15 @@ def save(self, context, filepath="",
         context.scene.frame_set(use_frame_start)
                     
         result = _write(self, context, filepath,
-                      use_version,
-                      use_selection,
-                      use_vertex_colors,
-                      use_apply_modifiers,
-                      use_armature,
-                      use_armature_pose,
-                      use_weight_min,
-                      use_weight_min_threshold
-                      )
+                        use_version,
+                        use_selection,
+                        use_vertex_colors,
+                        use_apply_modifiers,
+                        use_armature,
+                        use_armature_pose,
+                        use_weight_min,
+                        use_weight_min_threshold
+                        )
     else:
         
         if use_frame_start < use_frame_end:
@@ -109,15 +109,15 @@ def save(self, context, filepath="",
             filepath_frame = "%s_%.*i%s" % (filepath_split[0], frame_strlen, i_frame, filepath_split[1])
             
             result = _write(self, context, filepath_frame,
-                   use_version,
-                   use_selection,
-                   use_vertex_colors,
-                   use_apply_modifiers,
-                   use_armature,
-                   use_armature_pose,
-                   use_weight_min,
-                   use_weight_min_threshold
-                   )
+                            use_version,
+                            use_selection,
+                            use_vertex_colors,
+                            use_apply_modifiers,
+                            use_armature,
+                            use_armature_pose,
+                            use_weight_min,
+                            use_weight_min_threshold
+                            )
                     
             # Quit iteration on error
             if result:
@@ -135,16 +135,16 @@ def save(self, context, filepath="",
     
 
 def _write(self, context, filepath,
-         use_version,
-         use_selection,
-         use_vertex_colors,
-         use_apply_modifiers,
-         use_armature,
-         use_armature_pose,
-         use_weight_min,
-         use_weight_min_threshold
-         ):
-
+           use_version,
+           use_selection,
+           use_vertex_colors,
+           use_apply_modifiers,
+           use_armature,
+           use_armature_pose,
+           use_weight_min,
+           use_weight_min_threshold
+           ):
+    
     num_verts = 0
     num_faces = 0
     meshes = []
@@ -193,7 +193,17 @@ def _write(self, context, filepath,
             mod.show_viewport = mod_states[i]
 
         # Skip invalid meshes
-        if len(mesh.vertices) < 3 or len(mesh.faces) < 1 or len(ob.material_slots) < 1 or not mesh.uv_textures:
+        if len(mesh.vertices) < 3:
+            _skip_notice(ob.name, mesh.name, "Less than 3 vertices")
+            continue
+        if len(mesh.faces) < 1:
+            _skip_notice(ob.name, mesh.name, "No faces")
+            continue
+        if len(ob.material_slots) < 1:
+            _skip_notice(ob.name, mesh.name, "No material")
+            continue
+        if not mesh.uv_textures:
+            _skip_notice(ob.name, mesh.name, "No UV texture, not unwrapped?")
             continue
             
         meshes.append(mesh)
@@ -288,12 +298,21 @@ def _write(self, context, filepath,
         file.write("BONE 0 -1 \"tag_origin\"\n")
         
         file.write("\nBONE 0\n")
-        file.write("OFFSET 0.000000 0.000000 0.000000\n")
-        file.write("SCALE 1.000000 1.000000 1.000000\n")
-        file.write("X 1.000000 0.000000 0.000000\n")
-        file.write("Y 0.000000 1.000000 0.000000\n")
-        file.write("Z 0.000000 0.000000 1.000000\n")
         
+        if use_version == '5':
+            file.write("OFFSET 0.000000 0.000000 0.000000\n")
+            file.write("SCALE 1.000000 1.000000 1.000000\n")
+            file.write("X 1.000000 0.000000 0.000000\n")
+            file.write("Y 0.000000 1.000000 0.000000\n")
+            file.write("Z 0.000000 0.000000 1.000000\n")
+        else:
+            # Model format v6 has commas
+            file.write("OFFSET 0.000000, 0.000000, 0.000000\n")
+            file.write("SCALE 1.000000, 1.000000, 1.000000\n")
+            file.write("X 1.000000, 0.000000, 0.000000\n")
+            file.write("Y 0.000000, 1.000000, 0.000000\n")
+            file.write("Z 0.000000, 0.000000, 1.000000\n")
+
     else:
         
         # Either use posed armature bones for animation to model sequence export
@@ -308,37 +327,60 @@ def _write(self, context, filepath,
         a_matrix = armature.matrix_world
         
         # Get the root bone
+        # TODO: remove this? parent_index no longer needs this
         root = bones[0]
         
         # Check for multiple roots, armature should have exactly one
         roots = 0
         for bone in bones:
-            if bone.parent == None:
+            if not bone.parent:
                 roots += 1
         if roots != 1:
-            warning_string = "// Warning: %i root bones found in armature object '%s'\n" \
+            warning_string = "Warning: %i root bones found in armature object '%s'\n" \
                              % (roots, armature.name)
             print(warning_string)
-            file.write(warning_string)
+            file.write("// %s" % warning_string)
+        
+        # Look up table for bone indices
+        bone_table = [b.name for b in bones]
         
         # Write bone hierarchy table and create bone_mapping array for later use (vertex weights)
         for i, bone in enumerate(bones):
-            file.write("BONE %i %i \"%s\"\n" % (i, bone.parent_index(root)-1, bone.name))
+            
+            if bone.parent:
+                try:
+                    bone_parent_index = bone_table.index(bone.parent.name)
+                except (ValueError):
+                    bone_parent_index = 0
+                    file.write("// Warning: \"%s\" not found in bone table, binding to root...\n" % bone.parent.name)
+            else:
+                bone_parent_index = -1
+                
+            file.write("BONE %i %i \"%s\"\n" % (i, bone_parent_index, bone.name))
             bone_mapping[bone.name] = i
         
         # Write bone orientations
         for i, bone in enumerate(bones):
             file.write("\nBONE %i\n" % i)
             
-            b_tail = a_matrix * bone.tail
-            file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
+            # Using local tail for proper coordinates
+            b_tail = a_matrix * bone.tail_local
             
-            file.write("SCALE 1.000000 1.000000 1.000000\n") # Is this even supported by CoD?
+            # TODO: Fix rotation matrix calculation, calculation seems to be wrong...
+            b_matrix = a_matrix * bone.matrix
             
-            b_matrix = bone.matrix * a_matrix
-            file.write("X %.6f %.6f %.6f\n" % (b_matrix[0][0], b_matrix[0][1], b_matrix[0][2]))
-            file.write("Y %.6f %.6f %.6f\n" % (b_matrix[1][0], b_matrix[1][1], b_matrix[1][2]))
-            file.write("Z %.6f %.6f %.6f\n" % (b_matrix[2][0], b_matrix[2][1], b_matrix[2][2]))
+            if use_version == '5':
+                file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
+                file.write("SCALE 1.000000 1.000000 1.000000\n") # Is this even supported by CoD?
+                file.write("X %.6f %.6f %.6f\n" % (b_matrix[0][0], b_matrix[0][1], b_matrix[0][2]))
+                file.write("Y %.6f %.6f %.6f\n" % (b_matrix[1][0], b_matrix[1][1], b_matrix[1][2]))
+                file.write("Z %.6f %.6f %.6f\n" % (b_matrix[2][0], b_matrix[2][1], b_matrix[2][2]))
+            else:
+                file.write("OFFSET %.6f, %.6f, %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
+                file.write("SCALE 1.000000, 1.000000, 1.000000\n")
+                file.write("X %.6f, %.6f, %.6f\n" % (b_matrix[0][0], b_matrix[0][1], b_matrix[0][2]))
+                file.write("Y %.6f, %.6f, %.6f\n" % (b_matrix[1][0], b_matrix[1][1], b_matrix[1][2]))
+                file.write("Z %.6f, %.6f, %.6f\n" % (b_matrix[2][0], b_matrix[2][1], b_matrix[2][2]))
 
 
     # Write vertex data
@@ -381,7 +423,11 @@ def _write(self, context, filepath,
             z=mesh_matrix[0][2]*v.co[0]+mesh_matrix[1][2]*v.co[1]+mesh_matrix[2][2]*v.co[2]+mesh_matrix[3][2]
             
             file.write("VERT %i\n" % (v.index+v_count))
-            file.write("OFFSET %.6f, %.6f, %.6f\n" % (x, y, z))
+            
+            if use_version == '5':
+                file.write("OFFSET %.6f %.6f %.6f\n" % (x, y, z))
+            else:
+                file.write("OFFSET %.6f, %.6f, %.6f\n" % (x, y, z))                
             
             # Write bone influences
             if armature is None or meshes_vgroup[i] is None:
@@ -390,6 +436,7 @@ def _write(self, context, filepath,
             else:
                 cache = ""
                 c_bones = 0
+                
                 for weight, bone_index in weight_group_list[v.index]:
                     if (use_weight_min and round(weight, 6) < use_weight_min_threshold) or \
                        (not use_weight_min and round(weight, 6) == 0):
@@ -399,10 +446,10 @@ def _write(self, context, filepath,
                     c_bones += 1
                     
                 if c_bones == 0:
-                    warning_string = "// Warning: No bone influence found for vertex %i, binding to bone %i\n" \
+                    warning_string = "Warning: No bone influence found for vertex %i, binding to bone %i\n" \
                                      % (v.index, bone_index)
                     print(warning_string)
-                    file.write(warning_string)
+                    file.write("// %s" % warning_string)
                     file.write("BONES 1\n")
                     file.write("BONE %i 0.000001\n\n" % bone_index) # HACK: Is a minimum weight a good idea?
                 else:
@@ -594,3 +641,7 @@ def meshNormalizedWeights(vgroup, me, weight_min, weight_min_threshold):
                 vWeights[j] = w / tot
 
     return groupNames, vWeightList
+
+def _skip_notice(ob_name, mesh_name, notice):
+    print("\nSkipped object \"%s\" (mesh \"%s\"): %s" % (ob_name, mesh_name, notice))
+    

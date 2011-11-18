@@ -38,7 +38,7 @@ bl_info = {
     "blender": (2, 59, 0),
     "api": 39307,
     "location": "File > Import  |  File > Export",
-    "description": "Export models to *.XMODEL_EXPORT v5/v6 and animations to *.XANIM_EXPORT v3",
+    "description": "Export models to *.XMODEL_EXPORT and animations to *.XANIM_EXPORT",
     "warning": "Alpha version, please report any bugs!",
     "wiki_url": "http://code.google.com/p/blender-cod/",
     "tracker_url": "http://code.google.com/p/blender-cod/issues/list",
