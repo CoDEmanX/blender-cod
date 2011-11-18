@@ -316,7 +316,10 @@ def _write(self, context, filepath,
             if bone.parent == None:
                 roots += 1
         if roots != 1:
-            file.write("// Warning: %i root bones found in armature object '%s'\n" % (roots, armature.name))
+            warning_string = "// Warning: %i root bones found in armature object '%s'\n" \
+                             % (roots, armature.name)
+            print(warning_string)
+            file.write(warning_string)
         
         # Write bone hierarchy table and create bone_mapping array for later use (vertex weights)
         for i, bone in enumerate(bones):

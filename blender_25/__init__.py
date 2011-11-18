@@ -75,9 +75,9 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
     filename_ext = ".XMODEL_EXPORT"
     filter_glob = StringProperty(default="*.XMODEL_EXPORT", options={'HIDDEN'})
 
-    use_meshes = BoolProperty(name="Meshes", description="Import meshes", default=True)
-    use_armature = BoolProperty(name="Armature", description="Import Armature", default=True)
-    use_bind_armature = BoolProperty(name="Bind Meshes to Armature", description="Parent imported meshes to armature", default=True)
+    #use_meshes = BoolProperty(name="Meshes", description="Import meshes", default=True)
+    #use_armature = BoolProperty(name="Armature", description="Import Armature", default=True)
+    #use_bind_armature = BoolProperty(name="Bind Meshes to Armature", description="Parent imported meshes to armature", default=True)
 
     #use_split_objects = BoolProperty(name="Object", description="Import OBJ Objects into Blender Objects", default=True)
     #use_split_groups = BoolProperty(name="Group", description="Import OBJ Groups into Blender Objects", default=True)
@@ -86,12 +86,19 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
 
 
     def execute(self, context):
-        # print("Selected: " + context.active_object.name)
         from . import import_xmodel
+        start_time = time.clock()
+        result = import_xmodel.load(self, context, **self.as_keywords(ignore=("filter_glob", "check_existing")))
         
-        return import_xmodel.load(self, context, **self.as_keywords(ignore=("filter_glob",)))
+        if not result:
+            self.report({'INFO'}, "Import finished in %.4f sec." % (time.clock() - start_time))
+            return {'FINISHED'}
+        else:
+            self.report({'ERROR'}, result)
+            return {'CANCELLED'}
 
 
+    """
     def draw(self, context):
         layout = self.layout
         
@@ -102,6 +109,11 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
         row = layout.row()
         row.active = self.use_meshes and self.use_armature
         row.prop(self, "use_bind_armature")
+    """
+    
+    @classmethod
+    def poll(self, context):
+        return (context.scene is not None)
 
 
 class ImportXanim(bpy.types.Operator, ImportHelper):
@@ -418,14 +430,13 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
     def poll(self, context):
         return (context.scene is not None)
 
-"""
+
 def menu_func_xmodel_import(self, context):
     self.layout.operator(ImportXmodel.bl_idname, text="CoD Xmodel (.XMODEL_EXPORT)")
-
+"""
 def menu_func_xanim_import(self, context):
     self.layout.operator(ImportXanim.bl_idname, text="CoD Xanim (.XANIM_EXPORT)")
 """
-
 def menu_func_xmodel_export(self, context):
     self.layout.operator(ExportXmodel.bl_idname, text="CoD Xmodel (.XMODEL_EXPORT)")
     
@@ -436,7 +447,7 @@ def menu_func_xanim_export(self, context):
 def register():
     bpy.utils.register_module(__name__)
 
-    #bpy.types.INFO_MT_file_import.append(menu_func_xmodel_import)
+    bpy.types.INFO_MT_file_import.append(menu_func_xmodel_import)
     #bpy.types.INFO_MT_file_import.append(menu_func_xanim_import)
     bpy.types.INFO_MT_file_export.append(menu_func_xmodel_export)
     bpy.types.INFO_MT_file_export.append(menu_func_xanim_export)
@@ -445,7 +456,7 @@ def register():
 def unregister():
     bpy.utils.unregister_module(__name__)
 
-    #bpy.types.INFO_MT_file_import.remove(menu_func_xmodel_import)
+    bpy.types.INFO_MT_file_import.remove(menu_func_xmodel_import)
     #bpy.types.INFO_MT_file_import.remove(menu_func_xanim_import)
     bpy.types.INFO_MT_file_export.remove(menu_func_xmodel_export)
     bpy.types.INFO_MT_file_export.remove(menu_func_xanim_export)
