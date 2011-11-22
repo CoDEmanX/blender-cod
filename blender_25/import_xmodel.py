@@ -229,14 +229,21 @@ def load(self, context, filepath=""):
     #print("\n" + str(list(bone_table)) + "\n\n" + str(list(vert_table)))
     
 
-    createRig("Armature", Vector((0,0,0)), bone_table)
+    createRig(context, "Armature", Vector((0,0,0)), bone_table)
     
     #print("\n\n" + str(len(obj.data.bones)))
 
     file.close()
 
 
-def createRig(name, origin, boneTable):
+def createRig(context, name, origin, boneTable):
+    
+    # If no context object, an object was deleted and mode is 'OBJECT' for sure
+    if context.object: #and context.mode is not 'OBJECT':
+        
+        # Change mode, 'cause modes like POSE will lead to incorrect context poll
+        bpy.ops.object.mode_set(mode='OBJECT')
+    
     
     # Create armature and object
     bpy.ops.object.add(

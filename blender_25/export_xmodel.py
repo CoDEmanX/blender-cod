@@ -276,7 +276,9 @@ def _write(self, context, filepath,
         return "Could not open file for writing:\n%s" % filepath
 
     # Write header
-    file.write("// XMODEL_EXPORT file in CoD model v%i format created with Blender v%s\n" % (int(use_version), bpy.app.version_string))
+    file.write("// XMODEL_EXPORT file in CoD model v%i format created with Blender v%s\n" \
+               % (int(use_version), bpy.app.version_string))
+               
     file.write("// Source file: %s\n" % bpy.data.filepath)
     file.write("// Export time: %s\n\n" % datetime.now().strftime("%d-%b-%Y %H:%M:%S"))
     
@@ -324,11 +326,8 @@ def _write(self, context, filepath,
             
         file.write("\nNUMBONES %i\n" % len(bones))
         
+        # Get the armature object's orientation
         a_matrix = armature.matrix_world
-        
-        # Get the root bone
-        # TODO: remove this? parent_index no longer needs this
-        root = bones[0]
         
         # Check for multiple roots, armature should have exactly one
         roots = 0
@@ -352,7 +351,8 @@ def _write(self, context, filepath,
                     bone_parent_index = bone_table.index(bone.parent.name)
                 except (ValueError):
                     bone_parent_index = 0
-                    file.write("// Warning: \"%s\" not found in bone table, binding to root...\n" % bone.parent.name)
+                    file.write("// Warning: \"%s\" not found in bone table, binding to root...\n"
+                               % bone.parent.name)
             else:
                 bone_parent_index = -1
                 
@@ -367,7 +367,7 @@ def _write(self, context, filepath,
             b_tail = a_matrix * bone.tail_local
             
             # TODO: Fix rotation matrix calculation, calculation seems to be wrong...
-            b_matrix = a_matrix * bone.matrix
+            b_matrix = bone.matrix_local * a_matrix
             
             if use_version == '5':
                 file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
@@ -406,8 +406,13 @@ def _write(self, context, filepath,
         # Get bone influences per vertex
         if armature is not None and meshes_vgroup[i] is not None:
             
-            groupNames, vWeightList = meshNormalizedWeights(meshes_vgroup[i], me, use_weight_min, use_weight_min_threshold)
-            groupIndices = [bone_mapping.get(g, -1) for g in groupNames] # Bind to root if there's no bone with vertex_group name
+            groupNames, vWeightList = meshNormalizedWeights(meshes_vgroup[i],
+                                                            me,
+                                                            use_weight_min,
+                                                            use_weight_min_threshold
+                                                            )
+            # Get bones by vertex_group names, bind to root if can't find one 
+            groupIndices = [bone_mapping.get(g, -1) for g in groupNames]
                 
             weight_group_list = []
             for weights in vWeightList:
@@ -418,9 +423,20 @@ def _write(self, context, filepath,
             v = me.vertices[vert]
             
             # Calculate global coords
-            x=mesh_matrix[0][0]*v.co[0]+mesh_matrix[1][0]*v.co[1]+mesh_matrix[2][0]*v.co[2]+mesh_matrix[3][0]
-            y=mesh_matrix[0][1]*v.co[0]+mesh_matrix[1][1]*v.co[1]+mesh_matrix[2][1]*v.co[2]+mesh_matrix[3][1]
-            z=mesh_matrix[0][2]*v.co[0]+mesh_matrix[1][2]*v.co[1]+mesh_matrix[2][2]*v.co[2]+mesh_matrix[3][2]
+            x = mesh_matrix[0][0] * v.co[0] + \
+                mesh_matrix[1][0] * v.co[1] + \
+                mesh_matrix[2][0] * v.co[2] + \
+                mesh_matrix[3][0]
+                
+            y = mesh_matrix[0][1] * v.co[0] + \
+                mesh_matrix[1][1] * v.co[1] + \
+                mesh_matrix[2][1] * v.co[2] + \
+                mesh_matrix[3][1]
+                
+            z = mesh_matrix[0][2] * v.co[0] + \
+                mesh_matrix[1][2] * v.co[1] + \
+                mesh_matrix[2][2] * v.co[2] + \
+                mesh_matrix[3][2]
             
             file.write("VERT %i\n" % (v.index+v_count))
             
@@ -505,7 +521,8 @@ def _write(self, context, filepath,
                     # TODO: Warn if accidentally tiling ( uv <0 or >1 )
                     
                     if use_version == '5':
-                        file.write("VERT %i %.6f %.6f %.6f %.6f %.6f\n" % (v+v_count, uv1, uv2, no[0], no[1], no[2]))
+                        file.write("VERT %i %.6f %.6f %.6f %.6f %.6f\n" \
+                                   % (v+v_count, uv1, uv2, no[0], no[1], no[2]))
                     else:
                         file.write("VERT %i\n" % (v+v_count))
                         file.write("NORMAL %.6f %.6f %.6f\n" % (no[0], no[1], no[2]))
