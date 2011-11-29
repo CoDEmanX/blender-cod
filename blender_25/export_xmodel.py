@@ -154,8 +154,6 @@ def _write(self, context, filepath,
     armature = None
     bone_mapping = {}
     materials = []
-    materials_in_use=[]
-    materials_index = []
 
     ob_count = 0
     v_count = 0
@@ -225,11 +223,6 @@ def _write(self, context, filepath,
         
         objects.append(ob.name)
         
-        # Store all used materials (unique)
-        for ms in ob.material_slots:
-            if ms.material not in materials_in_use:
-                materials_in_use.append(ms.material)
-
     if (num_verts or num_faces or len(objects)) == 0:
         return "Nothing to export.\n" \
                "Meshes must have at least:\n" \
@@ -238,36 +231,6 @@ def _write(self, context, filepath,
                "    1 material\n" \
                "    UV mapping"
     
-    # Check materials and prepare
-    for i_mat, mat in enumerate(bpy.data.materials):
-        
-        # Only export actually required materials
-        if mat not in materials_in_use:
-            continue
-        try:
-            for i_ts, ts in enumerate(mat.texture_slots):
-                
-                # Skip empty slots and disabled textures
-                if not ts or not mat.use_textures[i_ts]:
-                    continue
-                    
-                # Image type and Color map? If yes, add to material array and index
-                if ts.texture.type == 'IMAGE' and ts.use_map_color_diffuse:
-                    
-                    # Pick filename of the first color map
-                    imagepath = ts.texture.image.filepath
-                    imagename = os.path.split(imagepath)[1]
-                    if len(imagename) == 0:
-                        imagename = "untitled"
-                    
-                    materials.append([mat.name, mat.diffuse_shader.capitalize(), imagename])
-                    materials_index.append(i_mat)
-                    break
-            else:
-                raise(ValueError)
-                
-        except:
-            continue
     
     # There's valid data for export, create output file
     try:
@@ -365,6 +328,8 @@ def _write(self, context, filepath,
             
             # Using local tail for proper coordinates
             b_tail = a_matrix * bone.tail_local
+            
+            # TODO: Fix calculation/error: pose animation will use posebones, but they don't have tail_local!
             
             # TODO: Fix rotation matrix calculation, calculation seems to be wrong...
             b_matrix = bone.matrix_local * a_matrix
@@ -473,28 +438,58 @@ def _write(self, context, filepath,
             
             
         v_count += len(verts);
-
-
+    
     # TODO: Find a better way to keep track of the vertex index?   
     v_count = 0
     
+    # Prepare material array
+    for me in meshes:
+        for f in me.faces:
+            try:
+                mat = me.materials[f.material_index]
+            except (IndexError):
+                # Mesh has no material with this index
+                # Note: material_index is never None (will be 0 instead)
+                continue
+            else:
+                if mat not in materials:
+                    materials.append(mat)
+    
     # Write face data
     file.write("\nNUMFACES %i\n" % num_faces)
-
+    
     for me in meshes:
-
+        
         for f in me.faces:
             
             try:
-                mat = materials_index.index(f.material_index)
-            except ValueError:
-                # Material not mapped, fall back to first
-                mat = 0
+                mat = me.materials[f.material_index]
+                
+            except (IndexError):
+                mat_index = 0
+                
+                warning_string = "Warning: Assigned material with index %i not found, falling back to first\n" \
+                                  % f.material_index
+                print(warning_string)
+                file.write("// %s" % warning_string)
+                
+            else:
+                try:
+                    mat_index = materials.index(mat)
+                    
+                except (ValueError):
+                    mat_index = 0
+                    
+                    warning_string = "Warning: Material \"%s\" not mapped, falling back to first\n" \
+                                      % mat.name
+                    print(warning_string)
+                    file.write("// %s" % warning_string)
             
+            # Support for vertex colors
             if me.vertex_colors:
                 col = me.vertex_colors.active.data[f.index]
             
-            # Experimental triangulation support
+            # Automatic triangulation support
             f_v_orig = [v for v in enumerate(f.vertices)]
             
             if len(f_v_orig) == 3:
@@ -504,10 +499,11 @@ def _write(self, context, filepath,
                 
             for iter in f_v_iter:
                 
+                # TODO: Test material# export (v5 correct?)
                 if use_version == '5':
-                    file.write("TRI %i 0 %i 1\n" % (ob_count, mat))
+                    file.write("TRI %i 0 %i 1\n" % (ob_count, mat_index))
                 else:
-                    file.write("TRI %i %i 0 0\n" % (ob_count, mat))
+                    file.write("TRI %i %i 0 0\n" % (ob_count, mat_index))
                 
                 for vi, v in iter:
                 
@@ -574,21 +570,47 @@ def _write(self, context, filepath,
     if len(materials) > 0:
         file.write("\nNUMMATERIALS %i\n" % len(materials))
         
-        for i_mat, (mat_name, mat_shader, filename) in enumerate(materials):
+        for i_mat, mat in enumerate(materials):
+            
+            try:
+                for i_ts, ts in enumerate(mat.texture_slots):
+                    
+                    # Skip empty slots and disabled textures
+                    if not ts or not mat.use_textures[i_ts]:
+                        continue
+                        
+                    # Image type and Color map? If yes, add to material array and index
+                    if ts.texture.type == 'IMAGE' and ts.use_map_color_diffuse:
+                        
+                        # Pick filename of the first color map
+                        imagepath = ts.texture.image.filepath
+                        imagename = os.path.split(imagepath)[1]
+                        if len(imagename) == 0:
+                            imagename = "untitled"
+                        break
+                else:
+                    raise(ValueError)
+                    
+            except:
+                imagename = "no color diffuse map found"
+            
+            mat_name = mat.name
+            mat_shader = mat.diffuse_shader.capitalize()
             
             if use_version == '5':
-                file.write("MATERIAL %i \"%s\"\n" % (i_mat, filename))
+                file.write("MATERIAL %i \"%s\"\n" % (i_mat, imagename))
                 # or is it mat.name@filename?
             else:
                 file.write("MATERIAL %i \"%s\" \"%s\" \"%s\"\n" % (
                            i_mat,
                            mat_name,
                            mat_shader,
-                           filename
+                           imagename
                            ))
                 file.write(material_string)
     else:
         # Write a default material
+        # Should never happen, nothing to export / mesh without material exceptions already caught
         file.write("\nNUMMATERIALS 1\n")
         if use_version == '5':
             file.write("MATERIAL 0 \"default.tga\"\n")

@@ -229,8 +229,11 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
     # Extend ExportHelper invoke function to support dynamic default values
     def invoke(self, context, event):
         
-        self.use_frame_start = context.scene.frame_start
-        self.use_frame_end = context.scene.frame_end
+        #self.use_frame_start = context.scene.frame_start
+        self.use_frame_start = context.scene.frame_current
+        
+        #self.use_frame_end = context.scene.frame_end
+        self.use_frame_end = context.scene.frame_current
         
         return super(ExportXmodel, self).invoke(context, event)
 
