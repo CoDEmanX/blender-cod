@@ -594,9 +594,14 @@ def _write(self, context, filepath,
             except:
                 imagename = "no color diffuse map found"
             
-            mat_name = mat.name
-            mat_shader = mat.diffuse_shader.capitalize()
-            
+            # Material can be assigned and None
+            if mat:
+                mat_name = mat.name
+                mat_shader = mat.diffuse_shader.capitalize()
+            else:
+                mat_name = "None"
+                mat_shader = "Lambert"
+                
             if use_version == '5':
                 file.write("MATERIAL %i \"%s\"\n" % (i_mat, imagename))
                 # or is it mat.name@filename?

@@ -34,7 +34,7 @@ TODO
 bl_info = {
     "name": "Blender-CoD - Add-On for Call of Duty modding (alpha 3)",
     "author": "CoDEmanX, Flybynyt",
-    "version": (0, 3, 0),
+    "version": (0, 3, 1),
     "blender": (2, 59, 0),
     "api": 39307,
     "location": "File > Import  |  File > Export",
