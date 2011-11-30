@@ -501,7 +501,7 @@ def _write(self, context, filepath,
                 
                 # TODO: Test material# export (v5 correct?)
                 if use_version == '5':
-                    file.write("TRI %i 0 %i 1\n" % (ob_count, mat_index))
+                    file.write("TRI %i %i 0 1\n" % (ob_count, mat_index))
                 else:
                     file.write("TRI %i %i 0 0\n" % (ob_count, mat_index))
                 
