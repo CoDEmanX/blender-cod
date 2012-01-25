@@ -34,7 +34,7 @@ TODO
 bl_info = {
     "name": "Blender-CoD - Add-On for Call of Duty modding (alpha 3)",
     "author": "CoDEmanX, Flybynyt",
-    "version": (0, 3, 1),
+    "version": (0, 3, 2),
     "blender": (2, 59, 0),
     "api": 39307,
     "location": "File > Import  |  File > Export",
@@ -262,11 +262,12 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         col.prop(self, "use_apply_modifiers")
         
         col = layout.column(align=True)
+        col.enabled = not self.use_armature_pose
         if self.use_armature and self.use_armature_pose:
-            col.prop(self, "use_armature", "Armature  (should be disabled)")
+            col.prop(self, "use_armature", "Armature  (disabled)")
         else:
             col.prop(self, "use_armature")
-
+            
         col = layout.column(align=True)
         col.label("Advanced:")
         

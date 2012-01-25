@@ -64,6 +64,10 @@ def save(self, context, filepath="",
 
     # Remember frame to set it back after export
     last_frame_current = context.scene.frame_current
+    
+    # Disable Armature for Pose animation export, bone.tail_local not available for PoseBones
+    if use_armature and use_armature_pose:
+        use_armature = False
 
     # Don't iterate for a single frame
     if not use_armature_pose or (use_armature_pose and use_frame_start == use_frame_end):
@@ -146,6 +150,8 @@ def _write(self, context, filepath,
            ):
     
     num_verts = 0
+    num_verts_unique = 0
+    verts_unique = []
     num_faces = 0
     meshes = []
     meshes_matrix = []
@@ -211,8 +217,26 @@ def _write(self, context, filepath,
             meshes_vgroup.append(ob.vertex_groups)
         else:
             meshes_vgroup.append(None)
+            
+            
+        # Retrieve verts which belong to a face only
+        # As len(mesh.vertices) doesn't take unused verts into account, already count here
+
+        verts = []
+        for f in mesh.faces:
+            for v in f.vertices:
+                verts.append(v)
+
+        # Uniquify & sort
+        keys = {}
+        for e in verts:
+            keys[e] = 1
+        verts = list(keys.keys())
         
-        num_verts += len(mesh.vertices)
+        # Store vert sets, aligned to mesh objects
+        verts_unique.append(verts)
+        num_verts_unique += len(verts)
+        
         
         # Take quads into account!
         for f in mesh.faces:
@@ -330,6 +354,7 @@ def _write(self, context, filepath,
             b_tail = a_matrix * bone.tail_local
             
             # TODO: Fix calculation/error: pose animation will use posebones, but they don't have tail_local!
+            # HACK: Armature export disabled for now to prevent this error
             
             # TODO: Fix rotation matrix calculation, calculation seems to be wrong...
             b_matrix = bone.matrix_local * a_matrix
@@ -349,21 +374,9 @@ def _write(self, context, filepath,
 
 
     # Write vertex data
-    file.write("\nNUMVERTS %i\n" % num_verts)
-
+    file.write("\nNUMVERTS %i\n" % num_verts_unique)
+    
     for i, me in enumerate(meshes):
-
-        # Retrieve verts which belong to a face only
-        verts = []
-        for f in me.faces:
-            for v in f.vertices:
-                verts.append(v)
-
-        # Uniquify & sort
-        keys = {}
-        for e in verts:
-            keys[e] = 1
-        verts = list(keys.keys())
 
         # Get the right object matrix for mesh
         mesh_matrix = meshes_matrix[i]
@@ -384,7 +397,8 @@ def _write(self, context, filepath,
                 weight_group_list.append(sorted(zip(weights, groupIndices), reverse=True))
                 
                 
-        for vert in verts:
+        # Use uniquified vert sets and count the verts
+        for i_vert, vert in enumerate(verts_unique[i]):
             v = me.vertices[vert]
             
             # Calculate global coords
@@ -403,12 +417,12 @@ def _write(self, context, filepath,
                 mesh_matrix[2][2] * v.co[2] + \
                 mesh_matrix[3][2]
             
-            file.write("VERT %i\n" % (v.index+v_count))
+            file.write("VERT %i\n" % (i_vert + v_count))
             
             if use_version == '5':
                 file.write("OFFSET %.6f %.6f %.6f\n" % (x, y, z))
             else:
-                file.write("OFFSET %.6f, %.6f, %.6f\n" % (x, y, z))                
+                file.write("OFFSET %.6f, %.6f, %.6f\n" % (x, y, z))
             
             # Write bone influences
             if armature is None or meshes_vgroup[i] is None:
@@ -437,9 +451,9 @@ def _write(self, context, filepath,
                     file.write("BONES %i\n%s\n" % (c_bones, cache))
             
             
-        v_count += len(verts);
+        v_count += len(verts_unique[i]);
     
-    # TODO: Find a better way to keep track of the vertex index?   
+    # TODO: Find a better way to keep track of the vertex index?
     v_count = 0
     
     # Prepare material array
