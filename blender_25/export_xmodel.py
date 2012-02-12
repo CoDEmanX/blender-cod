@@ -38,6 +38,7 @@ def save(self, context, filepath="",
          use_vertex_colors=True,
          use_apply_modifiers=True,
          use_armature=True,
+         use_vertex_cleanup=False,
          use_armature_pose=False,
          use_frame_start=1,
          use_frame_end=250,
@@ -79,6 +80,7 @@ def save(self, context, filepath="",
                         use_vertex_colors,
                         use_apply_modifiers,
                         use_armature,
+                        use_vertex_cleanup,
                         use_armature_pose,
                         use_weight_min,
                         use_weight_min_threshold
@@ -118,6 +120,7 @@ def save(self, context, filepath="",
                             use_vertex_colors,
                             use_apply_modifiers,
                             use_armature,
+                            use_vertex_cleanup,
                             use_armature_pose,
                             use_weight_min,
                             use_weight_min_threshold
@@ -144,6 +147,7 @@ def _write(self, context, filepath,
            use_vertex_colors,
            use_apply_modifiers,
            use_armature,
+           use_vertex_cleanup,
            use_armature_pose,
            use_weight_min,
            use_weight_min_threshold
@@ -219,22 +223,27 @@ def _write(self, context, filepath,
             meshes_vgroup.append(None)
             
             
-        # Retrieve verts which belong to a face only
-        # As len(mesh.vertices) doesn't take unused verts into account, already count here
-
-        verts = []
-        for f in mesh.faces:
-            for v in f.vertices:
-                verts.append(v)
-
-        # Uniquify & sort
-        keys = {}
-        for e in verts:
-            keys[e] = 1
-        verts = list(keys.keys())
+        if use_vertex_cleanup:
+            
+            # Retrieve verts which belong to a face
+            verts = []
+            for f in mesh.faces:
+                for v in f.vertices:
+                    verts.append(v)
+            
+            # Uniquify & sort
+            keys = {}
+            for e in verts:
+                keys[e] = 1
+            verts = list(keys.keys())
+            
+        else:
+            verts = [v.index for v in mesh.vertices]
         
         # Store vert sets, aligned to mesh objects
         verts_unique.append(verts)
+        
+        # As len(mesh.vertices) doesn't take unused verts into account, already count here
         num_verts_unique += len(verts)
         
         
@@ -354,10 +363,17 @@ def _write(self, context, filepath,
             b_tail = a_matrix * bone.tail_local
             
             # TODO: Fix calculation/error: pose animation will use posebones, but they don't have tail_local!
-            # HACK: Armature export disabled for now to prevent this error
             
             # TODO: Fix rotation matrix calculation, calculation seems to be wrong...
-            b_matrix = bone.matrix_local * a_matrix
+            #b_matrix = bone.matrix_local * a_matrix
+            #b_matrix = bone.matrix * a_matrix * bones[0].matrix.inverted()
+            #from mathutils import Matrix
+            
+            # Is this the way to go? Or will it fix the root only, but mess up all other roll angles?
+            if i == 0:
+                b_matrix = ((1,0,0),(0,1,0),(0,0,1))
+            else:
+                b_matrix = bone.matrix_local * a_matrix #* Matrix(((1,-0,0),(0,0,-1),(-0,1,0)))
             
             if use_version == '5':
                 file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
@@ -472,7 +488,7 @@ def _write(self, context, filepath,
     # Write face data
     file.write("\nNUMFACES %i\n" % num_faces)
     
-    for me in meshes:
+    for i_me, me in enumerate(meshes):
         
         for f in me.faces:
             
@@ -530,11 +546,17 @@ def _write(self, context, filepath,
                     #if 0 > uv1 > 1 
                     # TODO: Warn if accidentally tiling ( uv <0 or >1 )
                     
+                    # Remap vert indices used by face
+                    if use_vertex_cleanup:
+                        vert_new = verts_unique[i_me].index(v) + v_count
+                    else:
+                        vert_new = v + v_count
+                    
                     if use_version == '5':
                         file.write("VERT %i %.6f %.6f %.6f %.6f %.6f\n" \
-                                   % (v+v_count, uv1, uv2, no[0], no[1], no[2]))
+                                   % (vert_new, uv1, uv2, no[0], no[1], no[2]))
                     else:
-                        file.write("VERT %i\n" % (v+v_count))
+                        file.write("VERT %i\n" % vert_new)
                         file.write("NORMAL %.6f %.6f %.6f\n" % (no[0], no[1], no[2]))
                         
                         if me.vertex_colors and use_vertex_colors:

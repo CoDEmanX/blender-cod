@@ -34,7 +34,7 @@ TODO
 bl_info = {
     "name": "Blender-CoD - Add-On for Call of Duty modding (alpha 3)",
     "author": "CoDEmanX, Flybynyt",
-    "version": (0, 3, 2),
+    "version": (0, 3, 3),
     "blender": (2, 59, 0),
     "api": 39307,
     "location": "File > Import  |  File > Export",
@@ -178,6 +178,12 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         default=True
         )
         
+    use_vertex_cleanup = BoolProperty(
+        name="Clean up vertices",
+        description="Try this if you have problems converting to xmodel. Skips vertices which aren't used by any face and updates references.",
+        default=False
+        )
+        
     use_armature_pose = BoolProperty(
         name="Pose animation to models",
         description="Export meshes with Armature modifier applied as a series of XMODEL_EXPORT files",
@@ -270,6 +276,9 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
             
         col = layout.column(align=True)
         col.label("Advanced:")
+        
+        col = layout.column(align=True)
+        col.prop(self, "use_vertex_cleanup")
         
         box = layout.box()
         
