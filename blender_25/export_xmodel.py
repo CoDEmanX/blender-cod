@@ -490,6 +490,8 @@ def _write(self, context, filepath,
     
     for i_me, me in enumerate(meshes):
         
+        #file.write("// Verts:\n%s\n" % list(enumerate(verts_unique[i_me])))
+        
         for f in me.faces:
             
             try:
@@ -549,6 +551,7 @@ def _write(self, context, filepath,
                     # Remap vert indices used by face
                     if use_vertex_cleanup:
                         vert_new = verts_unique[i_me].index(v) + v_count
+                        #file.write("// %i (%i) --> %i\n" % (v+v_count, v, vert_new))
                     else:
                         vert_new = v + v_count
                     
@@ -577,7 +580,10 @@ def _write(self, context, filepath,
                         file.write("UV 1 %.6f %.6f\n" % (uv1, uv2))
         
         # Note: Face types (tris/quads) have nothing to do with vert indices!
-        v_count += len(me.vertices)
+        if use_vertex_cleanup:
+            v_count += len(verts_unique[i_me])
+        else:
+            v_count += len(me.vertices)
         
         ob_count += 1
 
