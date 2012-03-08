@@ -36,16 +36,14 @@ bl_info = {
     "author": "CoDEmanX, Flybynyt",
     "version": (0, 3, 3),
     "blender": (2, 59, 0),
-    "api": 39307,
     "location": "File > Import  |  File > Export",
     "description": "Export models to *.XMODEL_EXPORT and animations to *.XANIM_EXPORT",
     "warning": "Alpha version, please report any bugs!",
-    "wiki_url": "http://code.google.com/p/blender-cod/",
-    "tracker_url": "http://code.google.com/p/blender-cod/issues/list",
-    "support": "COMMUNITY",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Import-Export/Call_of_Duty_IO",
+    "tracker_url": "http://projects.blender.org/tracker/index.php?func=detail&aid=30482",
+    "support": "TESTING",
     "category": "Import-Export"
-    }
-
+}
 
 # To support reload properly, try to access a package var, if it's there, reload everything
 if "bpy" in locals():
@@ -84,12 +82,11 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
 
     #use_image_search = BoolProperty(name="Image Search", description="Search subdirs for any assosiated images (Warning, may be slow)", default=True)
 
-
     def execute(self, context):
         from . import import_xmodel
         start_time = time.clock()
         result = import_xmodel.load(self, context, **self.as_keywords(ignore=("filter_glob", "check_existing")))
-        
+
         if not result:
             self.report({'INFO'}, "Import finished in %.4f sec." % (time.clock() - start_time))
             return {'FINISHED'}
@@ -97,24 +94,22 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
             self.report({'ERROR'}, result)
             return {'CANCELLED'}
 
-
     """
     def draw(self, context):
         layout = self.layout
-        
+
         col = layout.column()
         col.prop(self, "use_meshes")
         col.prop(self, "use_armature")
-        
+
         row = layout.row()
         row.active = self.use_meshes and self.use_armature
         row.prop(self, "use_bind_armature")
     """
-    
+
     @classmethod
     def poll(self, context):
         return (context.scene is not None)
-
 
 class ImportXanim(bpy.types.Operator, ImportHelper):
     """Load a CoD XANIM_EXPORT File"""
@@ -124,14 +119,12 @@ class ImportXanim(bpy.types.Operator, ImportHelper):
 
     filename_ext = ".XANIM_EXPORT"
     filter_glob = StringProperty(default="*.XANIM_EXPORT", options={'HIDDEN'})
-    
-    
+
     def execute(self, context):
         # print("Selected: " + context.active_object.name)
         from . import import_xanim
-        
-        return import_xanim.load(self, context, **self.as_keywords(ignore=("filter_glob",)))
 
+        return import_xanim.load(self, context, **self.as_keywords(ignore=("filter_glob",)))
 
 class ExportXmodel(bpy.types.Operator, ExportHelper):
     """Save a CoD XMODEL_EXPORT File"""
@@ -145,7 +138,7 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
-    
+
     use_version = EnumProperty(
         name="Format Version",
         description="XMODEL_EXPORT format version for export",
@@ -159,44 +152,44 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         description="Export selected meshes only (object or weight paint mode)",
         default=False
         )
-        
+
     use_vertex_colors = BoolProperty(
         name="Vertex colors",
         description="Export vertex colors (if disabled, white color will be used)",
         default=True
         )
-        
+
     use_apply_modifiers = BoolProperty(
         name="Apply Modifiers",
         description="Apply all mesh modifiers except Armature (preview resolution)",
         default=True
         )
-        
+
     use_armature = BoolProperty(
         name="Armature",
         description="Export bones (if disabled, only a 'tag_origin' bone will be written)",
         default=True
         )
-        
+
     use_vertex_cleanup = BoolProperty(
         name="Clean up vertices",
         description="Try this if you have problems converting to xmodel. Skips vertices which aren't used by any face and updates references.",
         default=False
         )
-        
+
     use_armature_pose = BoolProperty(
         name="Pose animation to models",
         description="Export meshes with Armature modifier applied as a series of XMODEL_EXPORT files",
         default=False
         )
-        
+
     use_frame_start = IntProperty(
         name="Start",
         description="First frame to export",
         default=1,
         min=0
         )
-        
+
     use_frame_end = IntProperty(
         name="End",
         description="Last frame to export",
@@ -218,12 +211,11 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         max=1.0
         )
 
-
     def execute(self, context):
         from . import export_xmodel
         start_time = time.clock()
         result = export_xmodel.save(self, context, **self.as_keywords(ignore=("filter_glob", "check_existing")))
-        
+
         if not result:
             self.report({'INFO'}, "Export finished in %.4f sec." % (time.clock() - start_time))
             return {'FINISHED'}
@@ -231,70 +223,68 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
             self.report({'ERROR'}, result)
             return {'CANCELLED'}
 
-
     # Extend ExportHelper invoke function to support dynamic default values
     def invoke(self, context, event):
-        
+
         #self.use_frame_start = context.scene.frame_start
         self.use_frame_start = context.scene.frame_current
-        
+
         #self.use_frame_end = context.scene.frame_end
         self.use_frame_end = context.scene.frame_current
-        
-        return super(ExportXmodel, self).invoke(context, event)
 
+        return super(ExportXmodel, self).invoke(context, event)
 
     def draw(self, context):
         layout = self.layout
-        
+
         row = layout.row(align=True)
         row.prop(self, "use_version", expand=True)
-        
+
         # Calculate number of selected mesh objects
         if context.mode in ('OBJECT', 'PAINT_WEIGHT'):
             meshes_selected = len([m for m in bpy.data.objects if m.type == 'MESH' and m.select])
         else:
             meshes_selected = 0
-        
+
         col = layout.column(align=True)
         col.prop(self, "use_selection", "Selection only (%i meshes)" % meshes_selected)
         col.enabled = bool(meshes_selected)
-        
+
         col = layout.column(align=True)
         col.active = self.use_version == '6'
         col.prop(self, "use_vertex_colors")
-        
+
         col = layout.column(align=True)
         col.prop(self, "use_apply_modifiers")
-        
+
         col = layout.column(align=True)
         col.enabled = not self.use_armature_pose
         if self.use_armature and self.use_armature_pose:
             col.prop(self, "use_armature", "Armature  (disabled)")
         else:
             col.prop(self, "use_armature")
-            
+
         col = layout.column(align=True)
         col.label("Advanced:")
-        
+
         col = layout.column(align=True)
         col.prop(self, "use_vertex_cleanup")
-        
+
         box = layout.box()
-        
+
         col = box.column(align=True)
         col.prop(self, "use_armature_pose")
-        
+
         sub = box.column()
         sub.active = self.use_armature_pose
         sub.label(text="Frame range: (%i frames)" % (abs(self.use_frame_end - self.use_frame_start) + 1))
-        
+
         row = sub.row(align=True)
         row.prop(self, "use_frame_start")
         row.prop(self, "use_frame_end")
-        
+
         box = layout.box()
-        
+
         col = box.column(align=True)
         col.prop(self, "use_weight_min")
 
@@ -302,12 +292,10 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         sub.enabled = self.use_weight_min
         sub.prop(self, "use_weight_min_threshold")
         sub.label("More precise: %s" % str(round(self.use_weight_min_threshold, 6))) # More precise display
-        
-        
+
     @classmethod
     def poll(self, context):
         return (context.scene is not None)
-
 
 class ExportXanim(bpy.types.Operator, ExportHelper):
     """Save a XMODEL_XANIM File"""
@@ -318,7 +306,7 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
 
     filename_ext = ".XANIM_EXPORT"
     filter_glob = StringProperty(default="*.XANIM_EXPORT", options={'HIDDEN'})
-    
+
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
 
@@ -327,7 +315,7 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         description="Export selected bones only (pose mode)",
         default=False
         )
-    
+
     use_framerate = IntProperty(
         name="Framerate",
         description="Set FPS for export",
@@ -335,21 +323,21 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         min=1,
         max=100
         )
-        
+
     use_frame_start = IntProperty(
         name="Start",
         description="First frame to export",
         default=1,
         min=0
         )
-        
+
     use_frame_end = IntProperty(
         name="End",
         description="Last frame to export",
         default=250,
         min=0
         )
-        
+
     use_notetracks = BoolProperty(
         name="Notetracks",
         description="Export markers as notetracks",
@@ -365,12 +353,11 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         default='1',
         )
 
-
     def execute(self, context):
         from . import export_xanim
         start_time = time.clock()
         result = export_xanim.save(self, context, **self.as_keywords(ignore=("filter_glob", "check_existing")))
-        
+
         if not result:
             self.report({'INFO'}, "Export finished in %.4f sec." % (time.clock() - start_time))
             return {'FINISHED'}
@@ -378,71 +365,67 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
             self.report({'ERROR'}, result)
             return {'CANCELLED'}
 
-
     # Extend ExportHelper invoke function to support dynamic default values
     def invoke(self, context, event):
-        
+
         self.use_frame_start = context.scene.frame_start
         self.use_frame_end = context.scene.frame_end
         self.use_framerate = round(context.scene.render.fps / context.scene.render.fps_base)
-        
+
         return super(ExportXanim, self).invoke(context, event)
 
-
     def draw(self, context):
-        
+
         layout = self.layout
-        
+
         bones_selected = 0
         armature = None
-        
+
         # Take the first armature
         for ob in bpy.data.objects:
             if ob.type == 'ARMATURE' and len(ob.data.bones) > 0:
                 armature = ob.data
-                
+
                 # Calculate number of selected bones if in pose-mode
                 if context.mode == 'POSE':
                     bones_selected = len([b for b in armature.bones if b.select])
-                    
+
                 # Prepare info string
                 armature_info = "%s (%i bones)" % (ob.name, len(armature.bones))
                 break
         else:
             armature_info = "Not found!"
-            
+
         col = layout.column(align=True)
         col.label("Armature: %s" % armature_info)
-        
+
         col = layout.column(align=True)
         col.prop(self, "use_selection", "Selection only (%i bones)" % bones_selected)
         col.enabled = bool(bones_selected)
-        
+
         layout.label(text="Frame range: (%i frames)" % (abs(self.use_frame_end - self.use_frame_start) + 1))
-        
+
         row = layout.row(align=True)
         row.prop(self, "use_frame_start")
         row.prop(self, "use_frame_end")
-        
+
         col = layout.column(align=True)
         col.prop(self, "use_framerate")
-        
+
         # Calculate number of markers in export range
         frame_min = min(self.use_frame_start, self.use_frame_end)
         frame_max = max(self.use_frame_start, self.use_frame_end)
         num_markers = len([m for m in context.scene.timeline_markers if frame_max >= m.frame >= frame_min])
-        
+
         col = layout.column(align=True)
         col.prop(self, "use_notetracks", text="Notetracks (%i)" % num_markers)
-        
+
         col = layout.column(align=True)
         col.prop(self, "use_notetrack_format", expand=True)
-        
-        
+
     @classmethod
     def poll(self, context):
         return (context.scene is not None)
-
 
 def menu_func_xmodel_import(self, context):
     self.layout.operator(ImportXmodel.bl_idname, text="CoD Xmodel (.XMODEL_EXPORT)")
@@ -452,10 +435,9 @@ def menu_func_xanim_import(self, context):
 """
 def menu_func_xmodel_export(self, context):
     self.layout.operator(ExportXmodel.bl_idname, text="CoD Xmodel (.XMODEL_EXPORT)")
-    
+
 def menu_func_xanim_export(self, context):
     self.layout.operator(ExportXanim.bl_idname, text="CoD Xanim (.XANIM_EXPORT)")
-
 
 def register():
     bpy.utils.register_module(__name__)
@@ -465,7 +447,6 @@ def register():
     bpy.types.INFO_MT_file_export.append(menu_func_xmodel_export)
     bpy.types.INFO_MT_file_export.append(menu_func_xanim_export)
 
-
 def unregister():
     bpy.utils.unregister_module(__name__)
 
@@ -473,7 +454,6 @@ def unregister():
     #bpy.types.INFO_MT_file_import.remove(menu_func_xanim_import)
     bpy.types.INFO_MT_file_export.remove(menu_func_xmodel_export)
     bpy.types.INFO_MT_file_export.remove(menu_func_xanim_export)
-
 
 if __name__ == "__main__":
     register()

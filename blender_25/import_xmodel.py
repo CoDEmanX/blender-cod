@@ -47,20 +47,19 @@ def round_matrix_3x3(mat, precision=6):
                 (round(mat[1][0],precision), round(mat[1][1],precision), round(mat[1][2],precision)),
                 (round(mat[2][0],precision), round(mat[2][1],precision), round(mat[2][2],precision))))
 
-
 def load(self, context, filepath=""):
-    
+
     test_0 = []
     test_1 = []
     test_2 = []
     test_3 = []
 
     state = 0
-    
+
     # placeholders
     vec0 = Vector((0.0, 0.0, 0.0))
     mat0 = Matrix(((0.0, 0.0, 0.0),(0.0, 0.0, 0.0),(0.0, 0.0, 0.0)))
-    
+
     numbones = 0
     numbones_i = 0
     bone_i = 0
@@ -71,38 +70,36 @@ def load(self, context, filepath=""):
     bones_influencing_num = 0
     bones_influencing_i = 0
     numfaces = 0
-    
 
     print("\nImporting %s" % filepath)
-    
+
     try:
         file = open(filepath, "r")
     except IOError:
         return "Could not open file for reading:\n%s" % filepath
 
-    
     for line in file:
         line = line.strip()
         line_split = line.split()
-        
+
         # Skip empty and comment lines
         if not line or line[0] == "/":
             continue
-            
+
         elif state == 0 and line_split[0] == "MODEL":
             state = 1
-            
+
         elif state == 1 and line_split[0] == "VERSION":
             if line_split[1] != "6":
                 error_string = "Unsupported version: %s" % line_split[1]
                 print("\n%s" % error_string)
                 return error_string
             state = 2
-            
+
         elif state == 2 and line_split[0] == "NUMBONES":
             numbones = int(line_split[1])
             state = 3
-            
+
         elif state == 3 and line_split[0] == "BONE":
             if numbones_i != int(line_split[1]):
                 error_string = "Unexpected bone number: %s (expected %i)" % (line_split[1], numbones_i)
@@ -115,7 +112,7 @@ def load(self, context, filepath=""):
                 state = 4
             else:
                 numbones_i += 1
-                
+
         elif state == 4 and line_split[0] == "BONE":
             bone_num = int(line_split[1])
             if bone_i != bone_num:
@@ -123,11 +120,11 @@ def load(self, context, filepath=""):
                 print("\n%s" % error_string)
                 return error_string
             state = 5
-            
+
         elif state == 5 and line_split[0] == "OFFSET":
             # remove commas - line_split[#][:-1] would also work, but isn't as save
             line_split = line.replace(",", "").split()
-            
+
             # should we check for len(line_split) to ensure we got enough elements?
             # Note: we can't assign a new vector to tuple object, we need to change each value
 
@@ -138,13 +135,13 @@ def load(self, context, filepath=""):
             #bone_table[bone_i][2][1] = float(line_split[2])
             #bone_table[bone_i][2][2] = float(line_split[3])
             test_2.append(Vector((float(line_split[1]),float(line_split[2]),float(line_split[3]))))
-            
+
             state = 6
-            
+
         elif state == 6 and line_split[0] == "SCALE":
             # always 1.000000?! no processing so far...
             state = 7
-            
+
         elif state == 7 and line_split[0] == "X":
             line_split = line.replace(",", "").split()
             bone_table[bone_i][3][0] = Vector((float(line_split[1]), float(line_split[2]), float(line_split[3])))
@@ -154,21 +151,21 @@ def load(self, context, filepath=""):
             roll = roll%360 #nicer to have it 0-359.99...
             """
             state = 8
-            
+
         elif state == 8 and line_split[0] == "Y":
             line_split = line.replace(",", "").split()
             bone_table[bone_i][3][1] = Vector((float(line_split[1]), float(line_split[2]), float(line_split[3])))
             state = 9
-            
+
         elif state == 9 and line_split[0] == "Z":
             line_split = line.replace(",", "").split()
             vec_roll = Vector((float(line_split[1]), float(line_split[2]), float(line_split[3])))
             bone_table[bone_i][3][2] = vec_roll
             #print("bone_table: %s" % bone_table[bone_i][3][2])
-            
+
             test_3.append(vec_roll)
             print("test_3: %s\n\n" % test_3[:])
-            
+
             if bone_i >= numbones-1:
                 state = 10
             else:
@@ -177,11 +174,11 @@ def load(self, context, filepath=""):
                 #print("\t" + str(bone_table[bone_i][0]))
                 bone_i += 1
                 state = 4
-                
+
         elif state == 10 and line_split[0] == "NUMVERTS":
             numverts = int(line_split[1])
             state = 11
-            
+
         elif state == 11 and line_split[0] == "VERT":
             vert_num = int(line_split[1])
             if vert_i != vert_num:
@@ -190,17 +187,17 @@ def load(self, context, filepath=""):
                 return error_string
             vert_i += 1
             state = 12
-            
+
         elif state == 12 and line_split[0] == "OFFSET":
             line_split = line.replace(",", "").split()
             vert_table.append(Vector((float(line_split[1]), float(line_split[2]), float(line_split[3]))))
             state = 13
-            
+
         elif state == 13 and line_split[0] == "BONES":
             # TODO: process
             bones_influencing_num = int(line_split[1])
             state= 14
-            
+
         elif state == 14 and line_split[0] == "BONE":
             # TODO: add bones to vert_table
             if bones_influencing_i >= bones_influencing_num-1:
@@ -211,33 +208,31 @@ def load(self, context, filepath=""):
             else:
                 bones_influencing_i += 1
                 #state = 14
-                
+
         elif state == 15 and line_split[0] == "NUMFACES":
             numfaces = int(line_split[1])
             state = 16
-            
+
         else: #elif state == 16:
             #UNDONE
             pass
-            
+
         #print("\nCurrent state=" + str(state) + "\nLine:" + line)
-    
+
     #print("\n" + str(list(bone_table)) + "\n\n" + str(list(vert_table)))
-    
 
     #createRig(context, "Armature", Vector((0,0,0)), bone_table)
-    
+
     name = "Armature"
     origin = Vector((0,0,0))
     boneTable = bone_table
-    
+
     # If no context object, an object was deleted and mode is 'OBJECT' for sure
     if context.object: #and context.mode is not 'OBJECT':
-        
+
         # Change mode, 'cause modes like POSE will lead to incorrect context poll
         bpy.ops.object.mode_set(mode='OBJECT')
-    
-    
+
     # Create armature and object
     bpy.ops.object.add(
         type='ARMATURE', 
@@ -255,7 +250,7 @@ def load(self, context, filepath=""):
     #for (bname, pname, vector, matrix) in boneTable:
     #i = 0
     for (t0, t1, t2, t3) in zip(test_0, test_1, test_2, test_3):
-        
+
         bone = amt.edit_bones.new(t0)
         if t1 != -1:
             parent = amt.edit_bones[t1]
@@ -275,14 +270,13 @@ def load(self, context, filepath=""):
 
 """
 def createRig(context, name, origin, boneTable):
-    
+
     # If no context object, an object was deleted and mode is 'OBJECT' for sure
     if context.object: #and context.mode is not 'OBJECT':
-        
+
         # Change mode, 'cause modes like POSE will lead to incorrect context poll
         bpy.ops.object.mode_set(mode='OBJECT')
-    
-    
+
     # Create armature and object
     bpy.ops.object.add(
         type='ARMATURE', 
@@ -304,7 +298,7 @@ def createRig(context, name, origin, boneTable):
         t1 = test_1[i]
         t2 = test_2[i]
         t3 = test_3[i]
-        
+
         bone = amt.edit_bones.new(t0)
         if t1 != -1:
             parent = amt.edit_bones[t1]
@@ -322,7 +316,7 @@ def createRig(context, name, origin, boneTable):
         bone.tail = t2
         #bone.tail = boneTable[i][2] #passing boneTable as parameter seems to break it :(
         #i += 1
-        
+
     #outfile.write("\n%s" % str(boneTable))
 
     bpy.ops.object.mode_set(mode='OBJECT')
