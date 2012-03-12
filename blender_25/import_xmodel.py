@@ -67,6 +67,9 @@ def load(self, context, filepath=""):
     numverts = 0
     vert_i = 0
     vert_table = [] # allocate table? [0]*numverts
+    face_i = 0
+    face_tmp = []
+    face_table = []
     bones_influencing_num = 0
     bones_influencing_i = 0
     numfaces = 0
@@ -81,11 +84,11 @@ def load(self, context, filepath=""):
     for line in file:
         line = line.strip()
         line_split = line.split()
-
+        
         # Skip empty and comment lines
         if not line or line[0] == "/":
             continue
-
+            
         elif state == 0 and line_split[0] == "MODEL":
             state = 1
 
@@ -212,14 +215,58 @@ def load(self, context, filepath=""):
         elif state == 15 and line_split[0] == "NUMFACES":
             numfaces = int(line_split[1])
             state = 16
+            
+        elif state == 16 and line_split[0] == "TRI":
+            face_i += 1
+            face_tmp = []
+            state = 17
+            
+        elif (state == 17 or state == 21 or state == 25) and line_split[0] == "VERT":
+            print("face_tmp length: %i" % len(face_tmp))
+            face_tmp.append(int(line_split[1]))
+            state += 1
+        
+        elif (state == 18 or state == 22 or state == 26) and line_split[0] == "NORMAL":
+            state += 1
+            
+        elif (state == 19 or state == 23 or state == 27) and line_split[0] == "COLOR":
+            state += 1
+            
+        elif (state == 20 or state == 24 or state == 28) and line_split[0] == "UV":
+            state += 1
+        
+        elif state == 29 and line_split[0] == "TRI":
+
+            print("Adding face: %s\n%i faces so far (of %i)\n" % (str(face_tmp), face_i, numfaces))
+            face_table.append(face_tmp)
+            if (face_i >= numfaces - 1):
+                state = 30
+            else:
+                face_i += 1
+                face_tmp = []
+                state = 17
+                
+        elif state > 15 and state < 30 and line_split[0] == "NUMOBJECTS":
+            print("Bad numfaces, terminated loop\n")
+            state = 30
+            
+        elif state == 30:
+            print("Adding mesh!")
+            me = bpy.data.meshes.new("pymesh")
+            me.from_pydata(vert_table, [], face_table)
+            me.update()
+            ob = bpy.data.objects.new("Py-Mesh", me)
+            bpy.context.scene.objects.link(ob)
+            
+            state = 31
 
         else: #elif state == 16:
             #UNDONE
+            print("eh? state is %i line: %s" % (state, line))
             pass
 
         #print("\nCurrent state=" + str(state) + "\nLine:" + line)
 
-    print("Verts: \n\s" % str(list(vert_table)))
     #print("\n" + str(list(bone_table)) + "\n\n" + str(list(vert_table)))
 
     #createRig(context, "Armature", Vector((0,0,0)), bone_table)
