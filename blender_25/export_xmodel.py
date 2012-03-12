@@ -208,7 +208,7 @@ def _write(self, context, filepath,
         if len(ob.material_slots) < 1:
             _skip_notice(ob.name, mesh.name, "No material")
             continue
-        if not mesh.tessface_uv_textures:
+        if not mesh.uv_textures:
             _skip_notice(ob.name, mesh.name, "No UV texture, not unwrapped?")
             continue
 
@@ -509,8 +509,8 @@ def _write(self, context, filepath,
                     file.write("// %s" % warning_string)
 
             # Support for vertex colors
-            if me.tessface_vertex_colors:
-                col = me.tessface_vertex_colors.active.data[f.index]
+            if me.vertex_colors:
+                col = me.vertex_colors.active.data[f.index]
 
             # Automatic triangulation support
             f_v_orig = [v for v in enumerate(f.vertices)]
@@ -532,7 +532,7 @@ def _write(self, context, filepath,
 
                     no = me.vertices[v].normal # Invert? Orientation seems to have no effect...
 
-                    uv = me.tessface_uv_textures.active
+                    uv = me.uv_textures.active
                     uv1 = uv.data[f.index].uv[vi][0]
                     uv2 = 1 - uv.data[f.index].uv[vi][1] # Flip!
 
@@ -553,7 +553,7 @@ def _write(self, context, filepath,
                         file.write("VERT %i\n" % vert_new)
                         file.write("NORMAL %.6f %.6f %.6f\n" % (no[0], no[1], no[2]))
 
-                        if me.tessface_vertex_colors and use_vertex_colors:
+                        if me.vertex_colors and use_vertex_colors:
 
                             if vi == 0:
                                 c = col.color1
