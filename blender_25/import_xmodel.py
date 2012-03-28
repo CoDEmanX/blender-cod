@@ -235,7 +235,7 @@ def load(self, context, filepath=""):
         elif (state == 20 or state == 24 or state == 28) and line_split[0] == "UV":
             state += 1
         
-        elif state == 29 and line_split[0] == "TRI":
+        elif state == 29 #and line_split[0] == "TRI": # Dont check for TRI, or last face won't be created!
 
             print("Adding face: %s\n%i faces so far (of %i)\n" % (str(face_tmp), face_i, numfaces))
             face_table.append(face_tmp)

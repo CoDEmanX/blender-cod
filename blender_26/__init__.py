@@ -34,8 +34,8 @@ TODO
 bl_info = {
     "name": "Blender-CoD - Add-On for Call of Duty modding (alpha 3)",
     "author": "CoDEmanX, Flybynyt",
-    "version": (0, 3, 3),
-    "blender": (2, 59, 0),
+    "version": (0, 3, 4),
+    "blender": (2, 62, 2),
     "location": "File > Import  |  File > Export",
     "description": "Export models to *.XMODEL_EXPORT and animations to *.XANIM_EXPORT",
     "warning": "Alpha version, please report any bugs!",
@@ -118,7 +118,7 @@ class ImportXanim(bpy.types.Operator, ImportHelper):
     bl_options = {'PRESET'}
 
     filename_ext = ".XANIM_EXPORT"
-    filter_glob = StringProperty(default="*.XANIM_EXPORT", options={'HIDDEN'})
+    filter_glob = StringProperty(default="*.XANIM_EXPORT;*.NT_EXPORT", options={'HIDDEN'})
 
     def execute(self, context):
         # print("Selected: " + context.active_object.name)
@@ -208,7 +208,8 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         description="Smallest allowed weight (minimum value)",
         default=0.010097,
         min=0.0,
-        max=1.0
+        max=1.0,
+        precision=6
         )
 
     def execute(self, context):
@@ -232,7 +233,7 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         #self.use_frame_end = context.scene.frame_end
         self.use_frame_end = context.scene.frame_current
 
-        return super(ExportXmodel, self).invoke(context, event)
+        return super().invoke(context, event)
 
     def draw(self, context):
         layout = self.layout
@@ -291,7 +292,6 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         sub = box.column()
         sub.enabled = self.use_weight_min
         sub.prop(self, "use_weight_min_threshold")
-        sub.label("More precise: %s" % str(round(self.use_weight_min_threshold, 6))) # More precise display
 
     @classmethod
     def poll(self, context):
@@ -372,7 +372,7 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         self.use_frame_end = context.scene.frame_end
         self.use_framerate = round(context.scene.render.fps / context.scene.render.fps_base)
 
-        return super(ExportXanim, self).invoke(context, event)
+        return super().invoke(context, event)
 
     def draw(self, context):
 
@@ -396,8 +396,13 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         else:
             armature_info = "Not found!"
 
+        if armature:
+            icon = 'NONE'
+        else:
+            icon = 'ERROR'
+
         col = layout.column(align=True)
-        col.label("Armature: %s" % armature_info)
+        col.label("Armature: %s" % armature_info, icon)
 
         col = layout.column(align=True)
         col.prop(self, "use_selection", "Selection only (%i bones)" % bones_selected)
