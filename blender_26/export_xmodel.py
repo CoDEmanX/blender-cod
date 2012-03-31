@@ -202,7 +202,7 @@ def _write(self, context, filepath,
         if len(mesh.vertices) < 3:
             _skip_notice(ob.name, mesh.name, "Less than 3 vertices")
             continue
-        if len(mesh.faces) < 1:
+        if len(mesh.tessfaces) < 1:
             _skip_notice(ob.name, mesh.name, "No faces")
             continue
         if len(ob.material_slots) < 1:
@@ -224,7 +224,7 @@ def _write(self, context, filepath,
 
             # Retrieve verts which belong to a face
             verts = []
-            for f in mesh.faces:
+            for f in mesh.tessfaces:
                 for v in f.vertices:
                     verts.append(v)
 
@@ -244,7 +244,7 @@ def _write(self, context, filepath,
         num_verts_unique += len(verts)
 
         # Take quads into account!
-        for f in mesh.faces:
+        for f in mesh.tessfaces:
             if len(f.vertices) == 3:
                 num_faces += 1
             else:
@@ -367,20 +367,22 @@ def _write(self, context, filepath,
             if i == 0:
                 b_matrix = ((1,0,0),(0,1,0),(0,0,1))
             else:
-                b_matrix = bone.matrix_local * a_matrix #* Matrix(((1,-0,0),(0,0,-1),(-0,1,0)))
-
+                b_matrix = a_matrix * bone.matrix_local
+                #from mathutils import Matrix
+                #b_matrix = bone.matrix_local * a_matrix * Matrix(((1,-0,0),(0,0,-1),(-0,1,0)))
+                
             if use_version == '5':
                 file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
                 file.write("SCALE 1.000000 1.000000 1.000000\n") # Is this even supported by CoD?
-                file.write("X %.6f %.6f %.6f\n" % (b_matrix[0][0], b_matrix[0][1], b_matrix[0][2]))
-                file.write("Y %.6f %.6f %.6f\n" % (b_matrix[1][0], b_matrix[1][1], b_matrix[1][2]))
-                file.write("Z %.6f %.6f %.6f\n" % (b_matrix[2][0], b_matrix[2][1], b_matrix[2][2]))
+                file.write("X %.6f %.6f %.6f\n" % (b_matrix[0][0], b_matrix[1][0], b_matrix[2][0]))
+                file.write("Y %.6f %.6f %.6f\n" % (b_matrix[0][1], b_matrix[1][1], b_matrix[2][1]))
+                file.write("Z %.6f %.6f %.6f\n" % (b_matrix[0][2], b_matrix[1][2], b_matrix[2][2]))
             else:
                 file.write("OFFSET %.6f, %.6f, %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
                 file.write("SCALE 1.000000, 1.000000, 1.000000\n")
-                file.write("X %.6f, %.6f, %.6f\n" % (b_matrix[0][0], b_matrix[0][1], b_matrix[0][2]))
-                file.write("Y %.6f, %.6f, %.6f\n" % (b_matrix[1][0], b_matrix[1][1], b_matrix[1][2]))
-                file.write("Z %.6f, %.6f, %.6f\n" % (b_matrix[2][0], b_matrix[2][1], b_matrix[2][2]))
+                file.write("X %.6f, %.6f, %.6f\n" % (b_matrix[0][0], b_matrix[1][0], b_matrix[2][0]))
+                file.write("Y %.6f, %.6f, %.6f\n" % (b_matrix[0][1], b_matrix[1][1], b_matrix[2][1]))
+                file.write("Z %.6f, %.6f, %.6f\n" % (b_matrix[0][2], b_matrix[1][2], b_matrix[2][2]))
 
     # Write vertex data
     file.write("\nNUMVERTS %i\n" % num_verts_unique)
@@ -411,19 +413,21 @@ def _write(self, context, filepath,
 
             # Calculate global coords
             x = mesh_matrix[0][0] * v.co[0] + \
-                mesh_matrix[1][0] * v.co[1] + \
-                mesh_matrix[2][0] * v.co[2] + \
-                mesh_matrix[3][0]
+                mesh_matrix[0][1] * v.co[1] + \
+                mesh_matrix[0][2] * v.co[2] + \
+                mesh_matrix[0][3]
 
-            y = mesh_matrix[0][1] * v.co[0] + \
+            y = mesh_matrix[1][0] * v.co[0] + \
                 mesh_matrix[1][1] * v.co[1] + \
-                mesh_matrix[2][1] * v.co[2] + \
-                mesh_matrix[3][1]
+                mesh_matrix[1][2] * v.co[2] + \
+                mesh_matrix[1][3]
 
-            z = mesh_matrix[0][2] * v.co[0] + \
-                mesh_matrix[1][2] * v.co[1] + \
+            z = mesh_matrix[2][0] * v.co[0] + \
+                mesh_matrix[2][1] * v.co[1] + \
                 mesh_matrix[2][2] * v.co[2] + \
-                mesh_matrix[3][2]
+                mesh_matrix[2][3]
+                
+            #print("%.6f %.6f %.6f single calced xyz\n%.6f %.6f %.6f mat mult" % (x, y, z, ))
 
             file.write("VERT %i\n" % (i_vert + v_count))
 
@@ -465,7 +469,7 @@ def _write(self, context, filepath,
 
     # Prepare material array
     for me in meshes:
-        for f in me.faces:
+        for f in me.tessfaces:
             try:
                 mat = me.materials[f.material_index]
             except (IndexError):
@@ -483,7 +487,7 @@ def _write(self, context, filepath,
 
         #file.write("// Verts:\n%s\n" % list(enumerate(verts_unique[i_me])))
 
-        for f in me.faces:
+        for f in me.tessfaces:
 
             try:
                 mat = me.materials[f.material_index]

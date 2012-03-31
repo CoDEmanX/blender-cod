@@ -32,7 +32,6 @@ TODO
 """
 
 import bpy
-import os.path
 from datetime import datetime
 
 def save(self, context, filepath="",
@@ -40,7 +39,7 @@ def save(self, context, filepath="",
          use_framerate=24,
          use_frame_start=1,
          use_frame_end=250,
-         use_notetracks=True,
+         use_notetrack=True,
          use_notetrack_format='1'
          ):
 
@@ -142,27 +141,33 @@ def save(self, context, filepath="",
 
             file.write("PART %i\n" % i_bone)
 
-            b_tail = a_matrix * bone.tail
 
-            """ Doesn't seem to be right... or maybe it is? root can't have rotation, it rather sets the global orientation """
+            """ Doesn't seem to be right... or maybe it is? root can't have rotation, it rather sets the global orientation
             if bone.parent is None:
-                file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
+                file.write("OFFSET 0.000000 0.000000 0.000000\n")
                 file.write("SCALE 1.000000 1.000000 1.000000\n")
                 file.write("X 1.000000, 0.000000, 0.000000\n")
                 file.write("Y 0.000000, 1.000000, 0.000000\n")
                 file.write("Z 0.000000, 0.000000, 1.000000\n\n")
             else:
-                file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
-                file.write("SCALE 1.000000 1.000000 1.000000\n") # Is this even supported by CoD?
-                file.write("X %.6f %.6f %.6f\n" % (bone.matrix[0][0], bone.matrix[0][1], bone.matrix[0][2]))
-                file.write("Y %.6f %.6f %.6f\n" % (bone.matrix[1][0], bone.matrix[1][1], bone.matrix[1][2]))
-                file.write("Z %.6f %.6f %.6f\n\n" % (bone.matrix[2][0], bone.matrix[2][1], bone.matrix[2][2]))
+            """
 
-            """ Is a local matrix used (above) or a global?
-            b_matrix = bone.matrix * a_matrix
-            file.write("X %.6f %.6f %.6f\n" % (b_matrix[0][0], b_matrix[0][1], b_matrix[0][2]))
-            file.write("Y %.6f %.6f %.6f\n" % (b_matrix[1][0], b_matrix[1][1], b_matrix[1][2]))
-            file.write("Z %.6f %.6f %.6f\n" % (b_matrix[2][0], b_matrix[2][1], b_matrix[2][2]))
+            b_tail = a_matrix * bone.tail
+            file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
+            file.write("SCALE 1.000000 1.000000 1.000000\n") # Is this even supported by CoD?
+            
+            file.write("X %.6f %.6f %.6f\n" % (bone.matrix[0][0], bone.matrix[1][0], bone.matrix[2][0]))
+            file.write("Y %.6f %.6f %.6f\n" % (bone.matrix[0][1], bone.matrix[1][1], bone.matrix[2][1]))
+            file.write("Z %.6f %.6f %.6f\n\n" % (bone.matrix[0][2], bone.matrix[1][2], bone.matrix[2][2]))
+
+            """
+            # Is a local matrix used (above) or a global?
+            # Rest pose bone roll shouldn't matter if local is used... o_O
+            # Note: Converting to xanim delta doesn't allow bone moves (only root?)
+            b_matrix = a_matrix * bone.matrix
+            file.write("X %.6f %.6f %.6f\n" % (b_matrix[0][0], b_matrix[1][0], b_matrix[2][0]))
+            file.write("Y %.6f %.6f %.6f\n" % (b_matrix[0][1], b_matrix[1][1], b_matrix[2][1]))
+            file.write("Z %.6f %.6f %.6f\n" % (b_matrix[0][2], b_matrix[1][2], b_matrix[2][2]))
             """
 
     # Blender timeline markers to notetrack nodes
@@ -189,7 +194,7 @@ def save(self, context, filepath="",
 
             file.write("PART %i\n" % (i_bone))
 
-            if i_bone == 0 and use_notetracks and use_notetrack_format == '1' and len(markers) > 0:
+            if i_bone == 0 and use_notetrack and use_notetrack_format == '1' and len(markers) > 0:
 
                 file.write("NUMTRACKS 1\n\n")
                 file.write("NOTETRACK 0\n")
@@ -202,9 +207,11 @@ def save(self, context, filepath="",
     # Close to flush buffers!
     file.close()
 
-    if use_notetracks and use_notetrack_format in ('5', '7'):
+    if use_notetrack and use_notetrack_format in ('5', '7'):
 
+        import os.path
         filepath = os.path.splitext(filepath)[0] + ".NT_EXPORT"
+
         try:
             file = open(filepath, "w")
         except IOError:

@@ -67,6 +67,9 @@ def load(self, context, filepath=""):
     numverts = 0
     vert_i = 0
     vert_table = [] # allocate table? [0]*numverts
+    face_i = 0
+    face_tmp = []
+    face_table = []
     bones_influencing_num = 0
     bones_influencing_i = 0
     numfaces = 0
@@ -150,21 +153,31 @@ def load(self, context, filepath=""):
             bone.align_roll(targetmatrix[2])
             roll = roll%360 #nicer to have it 0-359.99...
             """
+            m_col = []
+            m_col.append((float(line_split[1]), float(line_split[2]), float(line_split[3])))
+            
             state = 8
 
         elif state == 8 and line_split[0] == "Y":
             line_split = line.replace(",", "").split()
             bone_table[bone_i][3][1] = Vector((float(line_split[1]), float(line_split[2]), float(line_split[3])))
+            
+            m_col.append((float(line_split[1]), float(line_split[2]), float(line_split[3])))
+
             state = 9
 
         elif state == 9 and line_split[0] == "Z":
             line_split = line.replace(",", "").split()
             vec_roll = Vector((float(line_split[1]), float(line_split[2]), float(line_split[3])))
-            bone_table[bone_i][3][2] = vec_roll
+            ##bone_table[bone_i][3][2] = vec_roll
             #print("bone_table: %s" % bone_table[bone_i][3][2])
+            
+            m_col.append((float(line_split[1]), float(line_split[2]), float(line_split[3])))
 
-            test_3.append(vec_roll)
-            print("test_3: %s\n\n" % test_3[:])
+            #test_3.append(Vector(vec_roll))
+            
+            test_3.append(m_col)
+            #print("test_3: %s\n\n" % test_3[:])
 
             if bone_i >= numbones-1:
                 state = 10
@@ -212,14 +225,58 @@ def load(self, context, filepath=""):
         elif state == 15 and line_split[0] == "NUMFACES":
             numfaces = int(line_split[1])
             state = 16
+            
+        elif state == 16: #and line_split[0] == "TRI":
+            #face_i += 1
+            face_tmp = []
+            state = 17
+            
+        elif (state == 17 or state == 21 or state == 25) and line_split[0] == "VERT":
+            #print("face_tmp length: %i" % len(face_tmp))
+            face_tmp.append(int(line_split[1]))
+            state += 1
+        
+        elif (state == 18 or state == 22 or state == 26) and line_split[0] == "NORMAL":
+            state += 1
+            
+        elif (state == 19 or state == 23 or state == 27) and line_split[0] == "COLOR":
+            state += 1
+            
+        elif (state == 20 or state == 24 or state == 28) and line_split[0] == "UV":
+            state += 1
+        
+        elif state == 29:
+
+            #print("Adding face: %s\n%i faces so far (of %i)\n" % (str(face_tmp), face_i, numfaces))
+            face_table.append(face_tmp)
+            if (face_i >= numfaces - 1):
+                state = 30
+            else:
+                face_i += 1
+                face_tmp = []
+                state = 17
+                
+        elif state > 15 and state < 30 and line_split[0] == "NUMOBJECTS":
+            print("Bad numfaces, terminated loop\n")
+            state = 30
+            
+        elif state == 30:
+            print("Adding mesh!")
+            me = bpy.data.meshes.new("pymesh")
+            me.from_pydata(vert_table, [], face_table)
+            me.update()
+            ob = bpy.data.objects.new("Py-Mesh", me)
+            bpy.context.scene.objects.link(ob)
+            
+            state = 31
 
         else: #elif state == 16:
             #UNDONE
+            print("eh? state is %i line: %s" % (state, line))
             pass
 
         #print("\nCurrent state=" + str(state) + "\nLine:" + line)
 
-    print("Verts: \n\s" % str(list(vert_table)))
     #print("\n" + str(list(bone_table)) + "\n\n" + str(list(vert_table)))
 
     #createRig(context, "Armature", Vector((0,0,0)), bone_table)
@@ -252,18 +309,26 @@ def load(self, context, filepath=""):
     #i = 0
     for (t0, t1, t2, t3) in zip(test_0, test_1, test_2, test_3):
 
+        t3 = Matrix(t3)
+
         bone = amt.edit_bones.new(t0)
         if t1 != -1:
             parent = amt.edit_bones[t1]
             bone.parent = parent
             bone.head = parent.tail
-            bone.use_connect = True
-            bone.align_roll(t3)
+
+            bone.align_roll((parent.matrix.to_3x3()*t3)[2])
+            #local_mat = parent.matrix.to_3x3() * t3()
+            #bone.align_roll(local_mat[2])
+            from math import degrees
+            print("t3[2]: %s\nroll: %f\n---------" % (t3.col[2], degrees(bone.roll)))
             #bone.roll = math.radians(180 - math.degrees(bone.roll))
-            print("###\nalign_roll: %s\nroll: %.2f\ntest_3:%s" % (t3, math.degrees(bone.roll), list(test_3)))
+            #print("###\nalign_roll: %s\nroll: %.2f\ntest_3:%s" % (t3, math.degrees(bone.roll), list(test_3)))
+            bone.use_connect = True
         else:
             bone.head = (0,0,0)
             rot = Matrix.Translation((0,0,0))	# identity matrix
+            bone.align_roll(t3[2])
             bone.use_connect = False
         bone.tail = t2
 
@@ -307,7 +372,7 @@ def createRig(context, name, origin, boneTable):
             bone.head = parent.tail
             bone.use_connect = True
             bone.align_roll(t3)
-            print("align_roll: %s\nroll: %.2f" % (t3, math.degrees(bone.roll)))
+            #print("align_roll: %s\nroll: %.2f" % (t3, math.degrees(bone.roll)))
             #(trans, rot, scale) = parent.matrix.decompose()
         else:
             bone.head = (0,0,0)

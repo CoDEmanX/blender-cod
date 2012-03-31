@@ -35,7 +35,7 @@ bl_info = {
     "name": "Blender-CoD - Add-On for Call of Duty modding (alpha 3)",
     "author": "CoDEmanX, Flybynyt",
     "version": (0, 3, 4),
-    "blender": (2, 62, 2),
+    "blender": (2, 62, 3),
     "location": "File > Import  |  File > Export",
     "description": "Export models to *.XMODEL_EXPORT and animations to *.XANIM_EXPORT",
     "warning": "Alpha version, please report any bugs!",
@@ -318,7 +318,7 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
 
     use_framerate = IntProperty(
         name="Framerate",
-        description="Set FPS for export",
+        description="Set frames per second for export, 30 fps is commonly used.",
         default=24,
         min=1,
         max=100
@@ -338,15 +338,15 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         min=0
         )
 
-    use_notetracks = BoolProperty(
-        name="Notetracks",
-        description="Export markers as notetracks",
+    use_notetrack = BoolProperty(
+        name="Notetrack",
+        description="Export timeline markers as notetrack nodes",
         default=True
         )
 
     use_notetrack_format = EnumProperty(
         name="Notetrack format",
-        description="Always set 'CoD 7' for Black Ops even if there is no notetrack!",
+        description="Notetrack format to use. Always set 'CoD 7' for Black Ops, even if not using notetrack!",
         items=(('5', "CoD 5", "Separate NT_EXPORT notetrack file for 'World at War'"),
                ('7', "CoD 7", "Separate NT_EXPORT notetrack file for 'Black Ops'"),
                ('1', "all other", "Inline notetrack data for all CoD versions except WaW and BO")),
@@ -423,7 +423,7 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
         num_markers = len([m for m in context.scene.timeline_markers if frame_max >= m.frame >= frame_min])
 
         col = layout.column(align=True)
-        col.prop(self, "use_notetracks", text="Notetracks (%i)" % num_markers)
+        col.prop(self, "use_notetrack", text="Notetrack (%i nodes)" % num_markers)
 
         col = layout.column(align=True)
         col.prop(self, "use_notetrack_format", expand=True)
