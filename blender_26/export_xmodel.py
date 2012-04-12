@@ -35,9 +35,10 @@ from datetime import datetime
 def save(self, context, filepath="",
          use_version='6',
          use_selection=False,
-         use_vertex_colors=True,
          use_apply_modifiers=True,
          use_armature=True,
+         use_vertex_colors=True,
+         use_vertex_colors_alpha=False,
          use_vertex_cleanup=False,
          use_armature_pose=False,
          use_frame_start=1,
@@ -77,9 +78,10 @@ def save(self, context, filepath="",
         result = _write(self, context, filepath,
                         use_version,
                         use_selection,
-                        use_vertex_colors,
                         use_apply_modifiers,
                         use_armature,
+                        use_vertex_colors,
+                        use_vertex_colors_alpha,
                         use_vertex_cleanup,
                         use_armature_pose,
                         use_weight_min,
@@ -117,9 +119,10 @@ def save(self, context, filepath="",
             result = _write(self, context, filepath_frame,
                             use_version,
                             use_selection,
-                            use_vertex_colors,
                             use_apply_modifiers,
                             use_armature,
+                            use_vertex_colors,
+                            use_vertex_colors_alpha,
                             use_vertex_cleanup,
                             use_armature_pose,
                             use_weight_min,
@@ -143,9 +146,10 @@ def save(self, context, filepath="",
 def _write(self, context, filepath,
            use_version,
            use_selection,
-           use_vertex_colors,
            use_apply_modifiers,
            use_armature,
+           use_vertex_colors,
+           use_vertex_colors_alpha,
            use_vertex_cleanup,
            use_armature_pose,
            use_weight_min,
@@ -568,7 +572,14 @@ def _write(self, context, filepath,
                             else:
                                 c = col.color4
 
-                            file.write("COLOR %.6f %.6f %.6f 1.000000\n" % (c[0], c[1], c[2]))
+                            if use_vertex_colors_alpha:
+
+                                # Turn RGB into grayscale by calculating average value
+                                file.write("COLOR 1.000000 1.000000 1.000000 %.6f\n" % ((c[0] + c[1] + c[2]) / 3))
+
+                            else:
+                                file.write("COLOR %.6f %.6f %.6f 1.000000\n" % (c[0], c[1], c[2]))
+
                         else:
                             file.write("COLOR 1.000000 1.000000 1.000000 1.000000\n")
 
