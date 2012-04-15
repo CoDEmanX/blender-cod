@@ -571,9 +571,9 @@ def _write(self, context, filepath,
 
                             if use_vertex_colors_alpha:
 
-                                # Turn RGB into grayscale by calculating average value
-                                file.write("COLOR 1.000000 1.000000 1.000000 %.6f\n" % ((c[0] + c[1] + c[2]) / 3))
-
+                                # Turn RGB into grayscale (luminance conversion)
+                                c_lum = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11
+                                file.write("COLOR 1.000000 1.000000 1.000000 %.6f\n" % c_lum)
                             else:
                                 file.write("COLOR %.6f %.6f %.6f 1.000000\n" % (c[0], c[1], c[2]))
 
