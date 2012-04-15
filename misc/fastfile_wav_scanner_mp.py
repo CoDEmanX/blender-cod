@@ -3,6 +3,10 @@ import multiprocessing, queue
 import time
 import struct
 
+# Global var
+script_dir = sys.path[0] + "\\sound\\"
+
+
 class Worker(multiprocessing.Process):
  
     def __init__(self, work_queue, result_queue, file_list):
@@ -17,6 +21,8 @@ class Worker(multiprocessing.Process):
         self.kill_received = False
  
     def _extract_wav(self, infile):
+
+        files_written = 0
 
         with open(infile, "rb") as f:
 
@@ -50,10 +56,14 @@ class Worker(multiprocessing.Process):
                 f.seek(16, 1)
                 filename_start = f.tell()
                 
+                z = 1
                 byte = f.read(1)
                 while byte != b'\x00':
                     byte = f.read(1)
-                    # TODO: limit this loop!
+                    z += 1
+                    if z > 255:
+                        print("Warning: Possibly invalid filename, capped at 256 chars!")
+                        break
                 
                 filename_end = f.tell() - 1
                 f.seek(filename_start, 0)
@@ -61,7 +71,7 @@ class Worker(multiprocessing.Process):
                 filename_len = filename_end - filename_start
                 
                 filename = f.read(filename_len)
-                filename = "C:\\_cod4_sound\\" + filename.decode('ascii').replace("/", "\\")
+                filename = script_dir + filename.decode('ascii').replace("/", "\\")
 
                 f.seek(1, 1)
                 
@@ -87,8 +97,13 @@ class Worker(multiprocessing.Process):
                     out.write(b"data")
                     out.write(struct.pack("i", data_len))
                     out.write(f.read(data_len))
-                    print(" > ok")
-                    
+
+                print(" > ok")
+                files_written += 1
+
+        return files_written
+
+
     def run(self):
         while not self.kill_received:
  
@@ -102,21 +117,24 @@ class Worker(multiprocessing.Process):
             file = self.file_list[job]
             print("Beginning file %i: %s\n"
                   "------------------------------------------------------------"
-                  % ((job + 1), os.path.split(file)[1])
-                  )
+                  % ((job + 1), os.path.split(file)[1]))
 
             start_time = time.clock()
             
-            self._extract_wav(file)
+            files_written = self._extract_wav(file)
+
+            print("\nFinished file %i in %.1f sec\n" % ((job + 1), (time.clock() - start_time)))
 
             # store the result
-            self.result_queue.put("\nFinished file %i in %.1f sec\n" % ((job + 1), (time.clock() - start_time)))
+            self.result_queue.put(files_written)
 
 
 def main():
-    
+
+    start_time = time.clock()
+
     print("\n------------------------------------------------------------\n"
-          "Scan and extract RIFF WAVE audio data from decompressed fastfiles\n"
+          "Extract RIFF WAVE audio data from decompressed fastfiles\n"
           "(c) 2012 CoDEmanX\n"
           "------------------------------------------------------------\n")
     
@@ -133,9 +151,15 @@ def main():
             file_list.append(arg)
             
     num_jobs = len(file_list)
-    num_processes = 4
-    
-    print("Start processing of %i files...\n" % num_jobs)
+
+    try:
+        num_processes = multiprocessing.cpu_count()
+    except NotImplementedError:
+        num_processes = 4
+
+    num_processes = min(num_processes, num_jobs)
+
+    print("Start scanning of %i files using %i processes...\n" % (num_jobs, num_processes))
     
     # run
     # load up work queue
@@ -153,14 +177,15 @@ def main():
  
     # collect the results off the queue
     results = []
+    files_written = 0
+
     for i in range(num_jobs):
-        print(result_queue.get())
+        files_written += result_queue.get()
+
+    print("\nExtracted %i files in %.1f sec to:\n%s\n\nPress enter to close!" % (files_written, (time.clock() - start_time), script_dir))
+    input()
+
 
 if __name__ == "__main__":
     
-    start_time = time.clock()
-
     main()
-    
-    print("\nDone. Total time: %.1f sec\n\nPress enter to close!" % (time.clock() - start_time))
-    input()
