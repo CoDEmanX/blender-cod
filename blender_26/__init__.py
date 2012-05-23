@@ -36,7 +36,7 @@ bl_info = {
     "author": "CoDEmanX, Flybynyt",
     "version": (0, 3, 5),
     "blender": (2, 62, 3),
-    "location": "File > Import  |  File > Export",
+    "location": "File > Import / Export",
     "description": "Export models to *.XMODEL_EXPORT and animations to *.XANIM_EXPORT",
     "warning": "Alpha version, please report any bugs!",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Import-Export/Call_of_Duty_IO",

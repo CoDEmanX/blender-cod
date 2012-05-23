@@ -413,29 +413,14 @@ def _write(self, context, filepath,
             v = me.vertices[vert]
 
             # Calculate global coords
-            x = mesh_matrix[0][0] * v.co[0] + \
-                mesh_matrix[0][1] * v.co[1] + \
-                mesh_matrix[0][2] * v.co[2] + \
-                mesh_matrix[0][3]
-
-            y = mesh_matrix[1][0] * v.co[0] + \
-                mesh_matrix[1][1] * v.co[1] + \
-                mesh_matrix[1][2] * v.co[2] + \
-                mesh_matrix[1][3]
-
-            z = mesh_matrix[2][0] * v.co[0] + \
-                mesh_matrix[2][1] * v.co[1] + \
-                mesh_matrix[2][2] * v.co[2] + \
-                mesh_matrix[2][3]
-                
-            #print("%.6f %.6f %.6f single calced xyz\n%.6f %.6f %.6f mat mult" % (x, y, z, ))
+            coord = mesh_matrix * v.co
 
             file.write("VERT %i\n" % (i_vert + v_count))
 
             if use_version == '5':
-                file.write("OFFSET %.6f %.6f %.6f\n" % (x, y, z))
+                file.write("OFFSET %.6f %.6f %.6f\n" % (coord[0], coord[1], coord[2]))
             else:
-                file.write("OFFSET %.6f, %.6f, %.6f\n" % (x, y, z))
+                file.write("OFFSET %.6f, %.6f, %.6f\n" % (coord[0], coord[1], coord[2]))
 
             # Write bone influences
             if armature is None or meshes_vgroup[i] is None:
