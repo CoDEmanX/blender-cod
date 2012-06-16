@@ -161,7 +161,7 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
 
     use_vertex_colors_alpha = BoolProperty(
         name="As alpha",
-        description="Turn RGB vertex colors into grayscale (average value) and use it as alpha transparency. White is 1 (opaque), black 0 (invisible)",
+        description="Turn RGB vertex colors into grayscale (luminance conversion) and use it as alpha transparency. White is 1 (opaque), black 0 (invisible)",
         default=False
         )
 

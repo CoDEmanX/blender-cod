@@ -158,7 +158,6 @@ def _write(self, context, filepath,
     verts_unique = []
     num_faces = 0
     meshes = []
-    meshes_matrix = []
     meshes_vgroup = []
     objects = []
     armature = None
@@ -195,6 +194,9 @@ def _write(self, context, filepath,
         # to_mesh() applies enabled modifiers only
         mesh = ob.to_mesh(scene=context.scene, apply_modifiers=True, settings='PREVIEW')
 
+        # Turn into global coords (applies 4x4 matrix)
+        mesh.transform(ob.matrix_world)
+
         # Restore modifier settings
         for i, mod in enumerate(ob.modifiers):
             mod.show_viewport = mod_states[i]
@@ -214,7 +216,6 @@ def _write(self, context, filepath,
             continue
 
         meshes.append(mesh)
-        meshes_matrix.append(ob.matrix_world)
 
         if ob.vertex_groups:
             meshes_vgroup.append(ob.vertex_groups)
@@ -390,9 +391,6 @@ def _write(self, context, filepath,
 
     for i, me in enumerate(meshes):
 
-        # Get the right object matrix for mesh
-        mesh_matrix = meshes_matrix[i]
-
         # Get bone influences per vertex
         if armature is not None and meshes_vgroup[i] is not None:
 
@@ -412,15 +410,12 @@ def _write(self, context, filepath,
         for i_vert, vert in enumerate(verts_unique[i]):
             v = me.vertices[vert]
 
-            # Calculate global coords
-            coord = mesh_matrix * v.co
-
             file.write("VERT %i\n" % (i_vert + v_count))
 
             if use_version == '5':
-                file.write("OFFSET %.6f %.6f %.6f\n" % (coord[0], coord[1], coord[2]))
+                file.write("OFFSET %.6f %.6f %.6f\n" % (v.co[0], v.co[1], v.co[2]))
             else:
-                file.write("OFFSET %.6f, %.6f, %.6f\n" % (coord[0], coord[1], coord[2]))
+                file.write("OFFSET %.6f, %.6f, %.6f\n" % (v.co[0], v.co[1], v.co[2]))
 
             # Write bone influences
             if armature is None or meshes_vgroup[i] is None:
@@ -526,13 +521,9 @@ def _write(self, context, filepath,
                     uv1 = uv.data[f.index].uv[vi][0]
                     uv2 = 1 - uv.data[f.index].uv[vi][1] # Flip!
 
-                    #if 0 > uv1 > 1 
-                    # TODO: Warn if accidentally tiling ( uv <0 or >1 )
-
                     # Remap vert indices used by face
                     if use_vertex_cleanup:
                         vert_new = verts_unique[i_me].index(v) + v_count
-                        #file.write("// %i (%i) --> %i\n" % (v+v_count, v, vert_new))
                     else:
                         vert_new = v + v_count
 
