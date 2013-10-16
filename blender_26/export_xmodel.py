@@ -30,6 +30,7 @@ http://code.google.com/p/blender-cod/
 
 import bpy
 import os
+import time
 from datetime import datetime
 
 def save(self, context, filepath="",
@@ -39,6 +40,7 @@ def save(self, context, filepath="",
          use_armature=True,
          use_vertex_colors=True,
          use_vertex_colors_alpha=False,
+         global_scale=1.0,
          use_vertex_cleanup=False,
          use_armature_pose=False,
          use_frame_start=1,
@@ -81,6 +83,7 @@ def save(self, context, filepath="",
                         use_armature,
                         use_vertex_colors,
                         use_vertex_colors_alpha,
+                        global_scale,
                         use_vertex_cleanup,
                         use_armature_pose,
                         use_weight_min,
@@ -121,6 +124,7 @@ def save(self, context, filepath="",
                             use_armature,
                             use_vertex_colors,
                             use_vertex_colors_alpha,
+                            global_scale,
                             use_vertex_cleanup,
                             use_armature_pose,
                             use_weight_min,
@@ -148,6 +152,7 @@ def _write(self, context, filepath,
            use_armature,
            use_vertex_colors,
            use_vertex_colors_alpha,
+           global_scale,
            use_vertex_cleanup,
            use_armature_pose,
            use_weight_min,
@@ -195,7 +200,8 @@ def _write(self, context, filepath,
         mesh = ob.to_mesh(scene=context.scene, apply_modifiers=True, settings='PREVIEW')
 
         # Turn into global coords (applies 4x4 matrix)
-        mesh.transform(ob.matrix_world)
+        ## Does scaling work together with armatures???
+        mesh.transform(global_scale * ob.matrix_world)
 
         # Restore modifier settings
         for i, mod in enumerate(ob.modifiers):
@@ -269,18 +275,27 @@ def _write(self, context, filepath,
         return "Could not open file for writing:\n%s" % filepath
 
     # Write header
+    file.write("// Export filename: '%s'\n" % filepath)
+    file.write("// Source filename: '%s'\n" % bpy.data.filepath)
+    file.write("// Options:\n")
+    file.write("// Export time: %s\n" % time.asctime())
+
+    # Temporarily disabled, as CheckinBuddy (a game studio importer)
+    # expects a header just like Maya exporter writes it
+    
+    """
+    file.write("// Export time: %s\n\n" % datetime.now().strftime("%d-%b-%Y %H:%M:%S"))
+    
     file.write("// XMODEL_EXPORT file in CoD model v%i format created with Blender v%s\n" \
                % (int(use_version), bpy.app.version_string))
-
-    file.write("// Source file: %s\n" % bpy.data.filepath)
-    file.write("// Export time: %s\n\n" % datetime.now().strftime("%d-%b-%Y %H:%M:%S"))
 
     if use_armature_pose:
         file.write("// Posed model of frame %i\n\n" % bpy.context.scene.frame_current)
 
     if use_weight_min:
         file.write("// Minimum bone weight: %f\n\n" % use_weight_min_threshold)
-
+    """
+    
     file.write("MODEL\n")
     file.write("VERSION %i\n" % int(use_version))
 
@@ -319,7 +334,7 @@ def _write(self, context, filepath,
         file.write("\nNUMBONES %i\n" % len(bones))
 
         # Get the armature object's orientation
-        a_matrix = armature.matrix_world
+        a_matrix = global_scale * armature.matrix_world
 
         # Check for multiple roots, armature should have exactly one
         roots = 0
