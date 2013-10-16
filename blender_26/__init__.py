@@ -176,6 +176,14 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
         description="Export bones (if disabled, only a 'tag_origin' bone will be written)",
         default=True
         )
+        
+    global_scale = FloatProperty(
+        name="Scale",
+        description="Scale all data",
+        min=0.01, max=1000.0,
+        soft_min=0.01, soft_max=1000.0,
+        default=1.0
+        )
 
     use_vertex_cleanup = BoolProperty(
         name="Clean up vertices",
@@ -275,6 +283,9 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
             sub = row.split()
             sub.active = self.use_vertex_colors
             sub.prop(self, "use_vertex_colors_alpha")
+        
+        col = layout.column()
+        col.prop(self, "global_scale")
 
         col = layout.column(align=True)
         col.label("Advanced:")
