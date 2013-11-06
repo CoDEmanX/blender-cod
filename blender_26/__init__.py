@@ -20,9 +20,9 @@
 
 """
 Blender-CoD: Blender Add-On for Call of Duty modding
-Version: alpha 3
+Version: alpha 4
 
-Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
+Copyright (c) 2011 CoDEmanX, SE2Dev, Flybynyt -- blender-cod@online.de
 
 http://code.google.com/p/blender-cod/
 
@@ -33,10 +33,10 @@ TODO
 
 bl_info = {
     "name": "Blender-CoD - Add-On for Call of Duty modding (alpha 3)",
-    "author": "CoDEmanX, Flybynyt",
-    "version": (0, 3, 5),
+    "author": "CoDEmanX, SE2Dev, Flybynyt",
+    "version": (0, 4, 0),
     "blender": (2, 62, 3),
-    "location": "File > Import / Export",
+    "location": "File > Import  |  File > Export",
     "description": "Export models to *.XMODEL_EXPORT and animations to *.XANIM_EXPORT",
     "warning": "Alpha version, please report any bugs!",
     "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Import-Export/Call_of_Duty_IO",
@@ -82,6 +82,24 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
 
     #use_image_search = BoolProperty(name="Image Search", description="Search subdirs for any assosiated images (Warning, may be slow)", default=True)
 
+    use_parents = BoolProperty( #SED
+        name="Use Parents",
+        description="Usefull for Rigging - Does Not Work With Imported Animations",
+        default=False
+        )
+
+    use_connected_bones = BoolProperty( #SED FTW
+        name="Connect Bones",
+        description="Connects Bones to Parents",
+        default=False
+        )
+    
+    use_local_location = BoolProperty( #SED FTW
+        name="Local Bone Location",
+        description="Use Local Bone Location",
+        default=False
+        )
+
     def execute(self, context):
         from . import import_xmodel
         start_time = time.clock()
@@ -94,18 +112,27 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
             self.report({'ERROR'}, result)
             return {'CANCELLED'}
 
-    """
+    
     def draw(self, context):
         layout = self.layout
 
-        col = layout.column()
-        col.prop(self, "use_meshes")
-        col.prop(self, "use_armature")
+        #col = layout.column()
+        #col.prop(self, "use_meshes")
+        #col.prop(self, "use_armature")
 
-        row = layout.row()
-        row.active = self.use_meshes and self.use_armature
-        row.prop(self, "use_bind_armature")
-    """
+        #row = layout.row()
+        #row.active = self.use_meshes and self.use_armature
+        #row.prop(self, "use_bind_armature")
+
+        box = layout.box()
+
+        col = box.column(align=True)
+        col.prop(self, "use_parents")
+
+        sub = box.column()
+        sub.enabled = self.use_parents
+        sub.prop(self, "use_connected_bones")
+    
 
     @classmethod
     def poll(self, context):
@@ -456,10 +483,10 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
 
 def menu_func_xmodel_import(self, context):
     self.layout.operator(ImportXmodel.bl_idname, text="CoD Xmodel (.XMODEL_EXPORT)")
-"""
+
 def menu_func_xanim_import(self, context):
     self.layout.operator(ImportXanim.bl_idname, text="CoD Xanim (.XANIM_EXPORT)")
-"""
+
 def menu_func_xmodel_export(self, context):
     self.layout.operator(ExportXmodel.bl_idname, text="CoD Xmodel (.XMODEL_EXPORT)")
 
@@ -470,7 +497,7 @@ def register():
     bpy.utils.register_module(__name__)
 
     bpy.types.INFO_MT_file_import.append(menu_func_xmodel_import)
-    #bpy.types.INFO_MT_file_import.append(menu_func_xanim_import)
+    bpy.types.INFO_MT_file_import.append(menu_func_xanim_import)
     bpy.types.INFO_MT_file_export.append(menu_func_xmodel_export)
     bpy.types.INFO_MT_file_export.append(menu_func_xanim_export)
 
@@ -478,7 +505,7 @@ def unregister():
     bpy.utils.unregister_module(__name__)
 
     bpy.types.INFO_MT_file_import.remove(menu_func_xmodel_import)
-    #bpy.types.INFO_MT_file_import.remove(menu_func_xanim_import)
+    bpy.types.INFO_MT_file_import.remove(menu_func_xanim_import)
     bpy.types.INFO_MT_file_export.remove(menu_func_xmodel_export)
     bpy.types.INFO_MT_file_export.remove(menu_func_xanim_export)
 

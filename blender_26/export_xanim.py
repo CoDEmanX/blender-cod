@@ -20,9 +20,9 @@
 
 """
 Blender-CoD: Blender Add-On for Call of Duty modding
-Version: alpha 3
+Version: alpha 4
 
-Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
+Copyright (c) 2013 CoDEmanX, SE2Dev, Flybynyt -- blender-cod@online.de
 
 http://code.google.com/p/blender-cod/
 
@@ -40,7 +40,8 @@ def save(self, context, filepath="",
          use_frame_start=1,
          use_frame_end=250,
          use_notetrack=True,
-         use_notetrack_format='1'):
+         use_notetrack_format='1'
+         ):
 
     armature = None
     last_frame_current = context.scene.frame_current
@@ -151,13 +152,18 @@ def save(self, context, filepath="",
             else:
             """
 
-            b_tail = a_matrix * bone.tail
+            b_tail = bone.head#a_matrix * bone.tail#SED
             file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
             file.write("SCALE 1.000000 1.000000 1.000000\n") # Is this even supported by CoD?
             
-            file.write("X %.6f %.6f %.6f\n" % (bone.matrix[0][0], bone.matrix[1][0], bone.matrix[2][0]))
-            file.write("Y %.6f %.6f %.6f\n" % (bone.matrix[0][1], bone.matrix[1][1], bone.matrix[2][1]))
-            file.write("Z %.6f %.6f %.6f\n\n" % (bone.matrix[0][2], bone.matrix[1][2], bone.matrix[2][2]))
+            #file.write("X %.6f %.6f %.6f\n" % (bone.matrix[0][0], bone.matrix[1][0], bone.matrix[2][0]))
+            #file.write("Y %.6f %.6f %.6f\n" % (bone.matrix[0][1], bone.matrix[1][1], bone.matrix[2][1]))
+            #file.write("Z %.6f %.6f %.6f\n\n" % (bone.matrix[0][2], bone.matrix[1][2], bone.matrix[2][2]))
+
+            file.write("X %.6f %.6f %.6f\n" % (bone.matrix[0][0], bone.matrix[0][1], bone.matrix[0][2]))#SED
+            file.write("Y %.6f %.6f %.6f\n" % (bone.matrix[1][0], bone.matrix[1][1], bone.matrix[1][2]))
+            file.write("Z %.6f %.6f %.6f\n\n" % (bone.matrix[2][0], bone.matrix[2][1], bone.matrix[2][2]))
+
 
             """
             # Is a local matrix used (above) or a global?

@@ -20,9 +20,9 @@
 
 """
 Blender-CoD: Blender Add-On for Call of Duty modding
-Version: alpha 3
+Version: alpha 4
 
-Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
+Copyright (c) 2013 CoDEmanX, SE2Dev, Flybynyt -- blender-cod@online.de
 
 http://code.google.com/p/blender-cod/
 
@@ -47,9 +47,10 @@ def round_matrix_3x3(mat, precision=6):
                 (round(mat[1][0],precision), round(mat[1][1],precision), round(mat[1][2],precision)),
                 (round(mat[2][0],precision), round(mat[2][1],precision), round(mat[2][2],precision))))
 
-def load(self, context, filepath=""):
+def load(self, context, filepath="", use_parents=True, use_connected_bones=False, use_local_location=False):
+ 
 
-    filepath = os.fsencode(filepath)
+    #filepath = os.fsencode(filepath)
 
     test_0 = []
     test_1 = []
@@ -66,9 +67,11 @@ def load(self, context, filepath=""):
     numbones_i = 0
     bone_i = 0
     bone_table = []
+    bone_name_table = []
     numverts = 0
     vert_i = 0
     vert_table = [] # allocate table? [0]*numverts
+    #vert_group_table = [] # see http://wiki.blender.org/index.php/Dev:2.5/Py/Scripts/Cookbook/Code_snippets/Armatures#Rigged_mesh for details
     face_i = 0
     face_tmp = []
     face_table = []
@@ -103,6 +106,9 @@ def load(self, context, filepath=""):
 
         elif state == 2 and line_split[0] == "NUMBONES":
             numbones = int(line_split[1])
+            vert_group_table = {} #SED
+            for i in range(numbones):
+                vert_group_table[i] = []
             state = 3
 
         elif state == 3 and line_split[0] == "BONE":
@@ -111,6 +117,11 @@ def load(self, context, filepath=""):
                 print("\n%s" % error_string)
                 return error_string
             bone_table.append((line_split[3][1:-1], int(line_split[2]), vec0, mat0))
+
+            bone_name_table.append(line_split[3][1:-1])#SED
+            #vert_group_table = {} #SED
+            #for i in range(numbones):
+            #    vert_group_table[i] = []
             test_0.append(line_split[3][1:-1])
             test_1.append(int(line_split[2]))
             if numbones_i >= numbones-1:
@@ -211,11 +222,20 @@ def load(self, context, filepath=""):
         elif state == 13 and line_split[0] == "BONES":
             # TODO: process
             bones_influencing_num = int(line_split[1])
+            bones_influencing_i = 0
             state= 14
 
         elif state == 14 and line_split[0] == "BONE":
             # TODO: add bones to vert_table
-            if bones_influencing_i >= bones_influencing_num-1:
+            #vgroups = {}
+            #vgroups['Base'] = [
+            #(0, 1.0), (1, 1.0), (2, 1.0), (3, 1.0),
+            #(4, 0.5), (5, 0.5), (6, 0.5), (7, 0.5)]
+            #vert_group_table[bone_name_table[line_split[1]]].append((vert_i, line_split[2]))#SED ADDED THIS
+            
+            vert_group_table[int(line_split[1])].append((vert_i-1, float(line_split[2]))) #SED ADDED THIS
+            
+            if bones_influencing_i >= (bones_influencing_num - 1):
                 if vert_i >= numverts:
                     state = 15
                 else:
@@ -267,8 +287,8 @@ def load(self, context, filepath=""):
             me = bpy.data.meshes.new("pymesh")
             me.from_pydata(vert_table, [], face_table)
             me.update()
-            ob = bpy.data.objects.new("Py-Mesh", me)
-            bpy.context.scene.objects.link(ob)
+            mesh_ob = bpy.data.objects.new("Py-Mesh", me)
+            bpy.context.scene.objects.link(mesh_ob)
             
             state = 31
 
@@ -309,84 +329,91 @@ def load(self, context, filepath=""):
     bpy.ops.object.mode_set(mode='EDIT')
     #for (bname, pname, vector, matrix) in boneTable:
     #i = 0
+
+    bones_i = -1#
+    #print(test_0)
     for (t0, t1, t2, t3) in zip(test_0, test_1, test_2, test_3):
-
+        t0 = t0.lower()#SED
         t3 = Matrix(t3)
-
+        
         bone = amt.edit_bones.new(t0)
+        bone.use_local_location = False #SED
+
         if t1 != -1:
             parent = amt.edit_bones[t1]
-            bone.parent = parent
-            bone.head = parent.tail
+            if(use_parents == True):
+                bone.parent = parent
+            #if(use_connected_bones  == True):
+                #bone.head = parent.tail
+            #else:
+            bone.head = t2
 
-            bone.align_roll((parent.matrix.to_3x3()*t3)[2])
+            #bone.align_roll(t3)		
+            #bone.align_roll((parent.matrix.to_3x3()*t3)[2]) #t3 = the rotation matrix directly from the file
+            #print(parent.matrix)
             #local_mat = parent.matrix.to_3x3() * t3()
             #bone.align_roll(local_mat[2])
             from math import degrees
-            print("t3[2]: %s\nroll: %f\n---------" % (t3.col[2], degrees(bone.roll)))
+            #print("t3[2]: %s\nroll: %f\n---------" % (t3.col[2], degrees(bone.roll)))
             #bone.roll = math.radians(180 - math.degrees(bone.roll))
             #print("###\nalign_roll: %s\nroll: %.2f\ntest_3:%s" % (t3, math.degrees(bone.roll), list(test_3)))
-            bone.use_connect = True
+            bone.use_connect = False#False#use_connected_bones#False#True - Dont connect bones to allow for proper stuff
+            tmp_mat = t3
+            tmp_mat.invert()
+            bone.tail = parent.head#tmp_mat*parent.head #t2#parent.head#bone.head#+Vector((0.0,0.0,0.1))
+            #bone.tail = bone.head+Vector((1,0,0))
+            #bone.align_roll(t3[2])
         else:
+            #print((t0,t1,t2,t3))
             bone.head = (0,0,0)
-            rot = Matrix.Translation((0,0,0))	# identity matrix
+            bone.tail = t2#(0,0,1)
+            rot = Matrix.Translation((35,25,12))	# identity matrix
             bone.align_roll(t3[2])
-            bone.use_connect = False
-        bone.tail = t2
+            #bone.use_connect = True#False
+            bone.tail = bone.head+Vector((0.0,0.0,1))
+        bones_i += 1 #probably not needed
+        #bone.tail = parent.head#Vector((0,0,0.1))#Fix tail location either
 
+    #Create Vertex Groups
+    for name, vgroup in vert_group_table.items():
+        grp = mesh_ob.vertex_groups.new(bone_name_table[name].lower())
+        for (v, w) in vgroup:
+            grp.add([v], w, 'REPLACE')
+    #Add Armature Modifier
+    mod = mesh_ob.modifiers.new('Armature Rig', 'ARMATURE')
+    mod.object = ob
+    mod.use_bone_envelopes = False
+    mod.use_vertex_groups = True
+
+    amt.draw_type = "STICK" #draw bones as sticks
+    bpy.ops.object.mode_set(mode='POSE') #enter pose mode
+
+    ob = bpy.context.object    
+    for (t0, t1, t2, t3) in zip(test_0, test_1, test_2, test_3): #SED
+        #ob.pose.bones.data.bones[t0].matrix = Matrix(t3).to_4x4() #SED
+        mat = Matrix(((1,0,0),(0,1,0),(0,0,1)))
+        mat.rotate(Matrix(t3).to_3x3())
+        mat = mat.to_4x4()
+        print(mat)
+        mw = ob.pose.bones.data.bones[t0].bone.matrix.copy() 
+        matrix_world = ob.pose.bones.data.bones[t0].bone.matrix.copy()
+
+        tmp_mat = Matrix.Translation(t2).to_4x4()# .+ Matrix((-1,0,0,0),(0,-1,0,0),(0,0,-1,0),(0,0,0,-1))
+        mat[0][3] = tmp_mat[0][3]
+        mat[1][3] = tmp_mat[1][3]
+        mat[2][3] = tmp_mat[2][3]
+
+       	ob.pose.bones.data.bones[t0].matrix = mat
+
+        #print(mat)
+        #print(ob.pose.bones.data.bones[t0])
+
+        #ob.pose.bones.data.bones[t0].matrix = mat
+        #print(ob.pose.bones.data.bones[t0].matrix)
+        #print(mat)
+        #b = ob.matrix_world.inverted()*(Matrix.Translation(t2)+mw.to_3x3().to_4x4())
+
+	##ob.pose.bones.data.bones[t0].matrix.rotate(Matrix(t3).to_3x3)
+        ##ob.pose.bones.data.bones[t0].location = t2 #SED
     file.close()
 
-"""
-def createRig(context, name, origin, boneTable):
-
-    # If no context object, an object was deleted and mode is 'OBJECT' for sure
-    if context.object: #and context.mode is not 'OBJECT':
-
-        # Change mode, 'cause modes like POSE will lead to incorrect context poll
-        bpy.ops.object.mode_set(mode='OBJECT')
-
-    # Create armature and object
-    bpy.ops.object.add(
-        type='ARMATURE', 
-        enter_editmode=True,
-        location=origin)
-    ob = bpy.context.object
-    ob.show_x_ray = True
-    ob.name = name
-    amt = ob.data
-    amt.name = name + "Amt"
-    #amt.show_axes = True
-
-    # Create bones
-    bpy.ops.object.mode_set(mode='EDIT')
-    #for (bname, pname, vector, matrix) in boneTable:
-    #i = 0
-    for i in range(len(test_0)):
-        t0 = test_0[i]
-        t1 = test_1[i]
-        t2 = test_2[i]
-        t3 = test_3[i]
-
-        bone = amt.edit_bones.new(t0)
-        if t1 != -1:
-            parent = amt.edit_bones[t1]
-            bone.parent = parent
-            bone.head = parent.tail
-            bone.use_connect = True
-            bone.align_roll(t3)
-            #print("align_roll: %s\nroll: %.2f" % (t3, math.degrees(bone.roll)))
-            #(trans, rot, scale) = parent.matrix.decompose()
-        else:
-            bone.head = (0,0,0)
-            rot = Matrix.Translation((0,0,0))	# identity matrix
-            bone.use_connect = False
-        #bone.tail = Vector(vector) * rot + bone.head
-        bone.tail = t2
-        #bone.tail = boneTable[i][2] #passing boneTable as parameter seems to break it :(
-        #i += 1
-
-    #outfile.write("\n%s" % str(boneTable))
-
-    bpy.ops.object.mode_set(mode='OBJECT')
-    return ob
-"""
