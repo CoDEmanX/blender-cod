@@ -20,9 +20,9 @@
 
 """
 Blender-CoD: Blender Add-On for Call of Duty modding
-Version: alpha 3
+Version: alpha 4
 
-Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
+Copyright (c) 2013 CoDEmanX, SE2Dev, Flybynyt -- blender-cod@online.de
 
 http://code.google.com/p/blender-cod/
 
@@ -46,7 +46,8 @@ def save(self, context, filepath="",
          use_frame_start=1,
          use_frame_end=250,
          use_weight_min=False,
-         use_weight_min_threshold=0.010097):
+         use_weight_min_threshold=0.010097
+         ):
 
     # There's no context object right after object deletion, need to set one
     if context.object:
@@ -87,7 +88,8 @@ def save(self, context, filepath="",
                         use_vertex_cleanup,
                         use_armature_pose,
                         use_weight_min,
-                        use_weight_min_threshold)
+                        use_weight_min_threshold
+                        )
     else:
 
         if use_frame_start < use_frame_end:
@@ -108,8 +110,8 @@ def save(self, context, filepath="",
                                               use_frame_end + frame_order,
                                               frame_order
                                               ),
-                                        frame_min):
-
+                                        frame_min
+                                        ):
             # Set frame for export
             # Don't do it directly to frame_current, as to_mesh() won't use updated frame!
             context.scene.frame_set(frame)
@@ -156,7 +158,8 @@ def _write(self, context, filepath,
            use_vertex_cleanup,
            use_armature_pose,
            use_weight_min,
-           use_weight_min_threshold):
+           use_weight_min_threshold
+           ):
 
     num_verts = 0
     num_verts_unique = 0
