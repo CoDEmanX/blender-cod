@@ -41,7 +41,6 @@ import bpy
 from mathutils import *
 import math
 
-#def load(self, context, **keywords):filepath=""
 
 def load(self, context, filepath=""):
 	scene = bpy.context.scene #bpy.data.scenes["Scene"].render.fps
@@ -157,7 +156,7 @@ def load(self, context, filepath=""):
 			m_col.append(Vector((float(line_split[1]), float(line_split[2]), float(line_split[3]))))
 			
 			rotMat = Matrix(m_col) #BoneMatrix.to_3x3
-			#bone_name_table[bone_i]
+						
 			try:
 				ob.pose.bones.data.bones[bone_name_table[bone_i].lower()]
 			except:
@@ -165,21 +164,28 @@ def load(self, context, filepath=""):
 				#print("Bone Not Found - Ignoring Bone:", bone_name_table[bone_i].lower())
 				#do nothing
 			else:
+				cbone = ob.pose.bones.data.bones[bone_name_table[bone_i].lower()] #Saves alot of space typing
+
 				mw = ob.pose.bones.data.bones[bone_name_table[bone_i].lower()].bone.matrix.copy() 
 				matrix_world = ob.pose.bones.data.bones[bone_name_table[bone_i].lower()].bone.matrix.copy()
-				ob.pose.bones.data.bones[bone_name_table[bone_i].lower()].matrix = ob.matrix_world.inverted()*(Matrix.Translation(offset)+mw.to_3x3().to_4x4())
+				ob.pose.bones.data.bones[bone_name_table[bone_i].lower()].matrix = (ob.matrix_world.inverted()*(Matrix.Translation(offset)+mw.to_3x3().to_4x4()))
 			
 				ob.pose.bones.data.bones[bone_name_table[bone_i].lower()].keyframe_insert(data_path = "location",index = -1,frame = currentframe)
-	
-				ob.pose.bones.data.bones[bone_name_table[bone_i].lower()].matrix = rotMat.to_4x4() #was .matrix = (rotMat.to_4x4())
-				#print(rotMat, " ", bone_name_table[bone_i])
-				ob.pose.bones.data.bones[bone_name_table[bone_i].lower()].keyframe_insert("rotation_euler",index = -1,frame = currentframe)#was rotation_quaternion - COD most likely uses euler
+				
+				try:
+					ob.pose.bones.data.bones[bone_name_table[bone_i].lower()].base_mat.to_3x3().inverted()
+				except:
+					mw.invert()
+				else:
+					bone_rmat = (rotMat.to_3x3() * cbone.base_mat.to_3x3().inverted()) * (cbone.rest_mat.to_3x3() * cbone.base_mat.to_3x3().inverted())
+					cbone.matrix = bone_rmat.to_4x4() * Matrix.Translation(offset) 
+					#(ob.pose.bones.data.bones[bone_i].rest_mat.to_3x3() * (rotMat * ob.pose.bones.data.bones[bone_i].base_mat.to_3x3().inverted())).to_4x4 * Matrix.Translation(offset)
+					
+				ob.pose.bones.data.bones[bone_name_table[bone_i].lower()].scale = Vector((1,1,1))
+				ob.pose.bones.data.bones[bone_name_table[bone_i].lower()].matrix = rotMat.transposed().to_4x4()
+				ob.pose.bones.data.bones[bone_name_table[bone_i].lower()].keyframe_insert("rotation_quaternion",index = -1,frame = currentframe)#was rotation_quaternion - COD most likely uses euler
 
 			
-			
-				
-			
-	
 			if bone_i >= numbones-1:
 				bone_i = 0
 				state = 6
@@ -195,5 +201,8 @@ def load(self, context, filepath=""):
 	#print(framerate)
 	#print(numframes)
 	#print(firstframe)
+	
+	bpy.context.scene.frame_current = firstframe
+	bpy.context.scene.update() #probably updates the scene
 
 	return {'FINISHED'}
