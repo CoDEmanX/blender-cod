@@ -16,6 +16,16 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
+"""
+Blender-CoD: Blender Add-On for Call of Duty modding
+Version: alpha 4
+
+Copyright (c) 2015 SE2Dev, CoDEmanX, Flybynyt -- blender-cod@online.de
+
+https://github.com/CoDEmanX/blender-cod
+
+"""
+
 import bpy
 from mathutils import *
 import math
@@ -23,18 +33,7 @@ import time
 
 #def load(self, context, **keywords):filepath=""
 
-"""def movebone(bone, matrix):
-        pmat = bone.matrix.copy()
-        dmat = matrix * pmat.inverted()
-        cmats = {}
-        for child in bone.children:
-                cmats[child.name] =  child.matrix.copy()
-        bone.matrix = matrix
-        for child in bone.children:
-                child.matrix =   dmat.inverted() * cmats[child.name] 
-        return {'FINISHED'}"""
-
-def movebone(bone, matrix):
+def movebone(bone, matrix): #moves a bone independent of its children
         pmat = bone.matrix.copy()
         dmat = matrix * pmat.inverted()
         cmats = {}
@@ -50,36 +49,21 @@ def load(self, context, filepath=""):
         time_start = time.time()
         scene = bpy.context.scene #bpy.data.scenes["Scene"].render.fps
         ob = bpy.context.object
-        #oob = bpy.context.scene.objects['OOB']#original object data in a copied armature named 'OOB'
+        
         amt = ob.data
         
         bpy.ops.object.mode_set(mode='POSE') 
         
-        #print(bones.keys())
-        #for i, v in enumerate(bones.keys()):
-        #       print( i, v)
-
-        #print(bones[1])
-
         filetype = ""
         version = 0
         numbones = 0
         bone_i = 0
-        #bone_data_table = [] #bone[bone#][frame][(offset, scale, [x,x,x],[y,y,y],[z,z,z])] # now inited after the framenumber is found
         bone_name_table = []
         framerate = 0
         numframes = 0
         bone_name = ""
         has_neg_tag_origin = 0
         is_view_anim = 1 #set this to 0 later
-        #frame_i = 0
-        #currentframe = 0
-        #currentbone = 0
-        #firstframe = -1 #might work  - might not
-
-        #print(bpy.context.object.pose.bones[0])
-
-        #return {'FINISHED'}
 
         state = 0
 
@@ -134,9 +118,9 @@ def load(self, context, filepath=""):
                         #init bone table ex. bone[0] = bone 0   : bone[0].offset etc
                         state = 6
 
-                elif not(state == 14) and line_split[0] == "FRAME":#state == 6 and line_split[0] == "FRAME":
+                elif not(state == 14) and line_split[0] == "FRAME":
                         currentframe = int(line_split[1])
-                        #print(currentframe)
+
                         try:
                                 firstframe
                         except:
@@ -167,8 +151,6 @@ def load(self, context, filepath=""):
         
                 elif state == 8 and line_split[0] == "OFFSET":
                         offset = Vector((float(line_split[1]),float(line_split[2]),float(line_split[3])))
-                        #if(bone_name == "tag_origin"):
-                                #offset /= 2.54
 
                         try:
                                 ob.pose.bones.data.bones[bone_name]
@@ -194,9 +176,6 @@ def load(self, context, filepath=""):
 
                                 else:
                                         cbone.matrix_basis.translation = offset
-                                """if (is_view_anim == True and any("tag_torso" in bone.name for bone in cbone.parent_recursive)): #used for Viewmodels
-                                        cbone.matrix.translation /= 2.54"""
-                                #cbone.matrix.translation = cbone.matrix.translation+offset
 
                                 cbone.keyframe_insert(data_path = "location",index = -1,frame = currentframe)
                                 
@@ -241,10 +220,8 @@ def load(self, context, filepath=""):
                         
                                 cbone.scale = Vector((1,1,1))
                                 cbone.matrix = tmp_mat
-                                #cbone.matrix_basis.translation = offset
-                                #cbone.keyframe_insert(data_path = "location",index = -1,frame = currentframe)
                                 
-                                cbone.keyframe_insert("rotation_quaternion",index = -1,frame = currentframe)#was rotation_quaternion - COD most likely uses euler
+                                cbone.keyframe_insert("rotation_quaternion",index = -1,frame = currentframe)
                         
                         if bone_i+has_neg_tag_origin >= numbones-1:
                                 bone_i = 0
@@ -260,18 +237,10 @@ def load(self, context, filepath=""):
                         #print(nt_name)
                         state = 14
                 elif state == 14 and line_split[0] == "FRAME":
-                        #nt_frame = int(line_split[1])
-                        #bpy.context.frame_current = firstframe + numframes
                         notetrack = bpy.context.scene.timeline_markers.new(nt_name)
-                        notetrack.frame = int(line_split[1])#bpy.context.scene.timeline_markers[nt_name].frame = int(line_split[1])
+                        notetrack.frame = int(line_split[1])
         
                         state = 13
-                #else:
-                #       print(line_split[0] + str(state))
-                
-        #for i in range(10):
-        #       ob.pose.bones.data.bones['tag_origin'].location += Vector((1,1,1))
-        #       ob.pose.bones.data.bones['tag_origin'].keyframe_insert(data_path = "location",index = -1,frame = i, group="bone_a")
 
         bpy.context.scene.update()
         file.close()
@@ -284,11 +253,6 @@ def load(self, context, filepath=""):
         return {'FINISHED'}
 
 
-
-
-
-
-#def load_xanim(self, context, filepath=""):
 def load_xanim(self, context, file):
         time_start = time.time()
         scene = bpy.context.scene #bpy.data.scenes["Scene"].render.fps
@@ -297,37 +261,16 @@ def load_xanim(self, context, file):
         
         bpy.ops.object.mode_set(mode='POSE') 
         
-        #print(bones.keys())
-        #for i, v in enumerate(bones.keys()):
-        #       print( i, v)
-
-        #print(bones[1])
 
         filetype = ""
         version = 0
         numbones = 0
         bone_i = 0
-        #bone_data_table = [] #bone[bone#][frame][(offset, scale, [x,x,x],[y,y,y],[z,z,z])] # now inited after the framenumber is found
         bone_name_table = []
         framerate = 0
         numframes = 0
-        #frame_i = 0
-        #currentframe = 0
-        #currentbone = 0
-        #firstframe = -1 #might work  - might not
-
-        #print(bpy.context.object.pose.bones[0])
-
-        #return {'FINISHED'}
-
+   
         state = 2 #the first two parts were parsed by the previous function
-
-        """print("\nImporting %s" % filepath)
-
-        try:
-                file = open(filepath, "r")
-        except IOError:
-                return "Could not open file for reading:\n%s" % filepath"""
 
         for line in file:
                 line = line.strip()
@@ -372,8 +315,7 @@ def load_xanim(self, context, file):
                         currentframe = int(line_split[1])
                         bpy.context.scene.frame_current = currentframe
                         bpy.context.scene.update()
-                        #print("FRAME:" + str(bpy.context.scene.frame_current))
-                        #print(currentframe)
+                        
                         try:
                                 firstframe
                         except:
@@ -406,9 +348,8 @@ def load_xanim(self, context, file):
                 elif state == 12 and line_split[0] == "Z":
                         m_col.append(Vector((float(line_split[1]), float(line_split[2]), float(line_split[3]))))
                         
-                        rotMat = Matrix(m_col).transposed().to_4x4() #BoneMatrix.to_3x3
-                        
-                        #rotMat.transposed().to_4x4()                   
+                        rotMat = Matrix(m_col).transposed().to_4x4()
+                                         
                         try:
                                 ob.pose.bones[bone_name_table[bone_i].lower()]
                         except:
@@ -440,16 +381,8 @@ def load_xanim(self, context, file):
                         notetrack.frame = int(line_split[1])#bpy.context.scene.timeline_markers[nt_name].frame = int(line_split[1])
         
                         state = 13
-
-        #for i in range(10):
-        #       ob.pose.bones.data.bones['tag_origin'].location += Vector((1,1,1))
-        #       ob.pose.bones.data.bones['tag_origin'].keyframe_insert(data_path = "location",index = -1,frame = i, group="bone_a")
         
         file.close()
-        
-        #print(framerate)
-        #print(numframes)
-        #print(firstframe)
         
         bpy.context.scene.frame_current = firstframe
         bpy.context.scene.update() #probably updates teh scene

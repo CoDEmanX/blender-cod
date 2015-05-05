@@ -22,9 +22,9 @@
 Blender-CoD: Blender Add-On for Call of Duty modding
 Version: alpha 3
 
-Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
+Copyright (c) 2011 CoDEmanX, Flybynyt, SE2Dev -- blender-cod@online.de
 
-http://code.google.com/p/blender-cod/
+https://github.com/CoDEmanX/blender-cod
 
 TODO
 - UI for xmodel and xanim import (planned for alpha 4/5)
@@ -33,7 +33,7 @@ TODO
 
 bl_info = {
 	"name": "Blender-CoD - Add-On for Call of Duty modding (alpha 3)",
-	"author": "CoDEmanX, Flybynyt",
+	"author": "CoDEmanX, Flybynyt, SE2Dev", 
 	"version": (0, 3, 5),
 	"blender": (2, 62, 3),
 	"location": "File > Import  |  File > Export",
@@ -84,20 +84,8 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
 
 	use_parents = BoolProperty( #SED
 		name="Use Parents",
-		description="Usefull for Rigging - Does Not Work With Imported Animations",
-		default=True#used to be false 2014
-		)
-
-	use_connected_bones = BoolProperty( #SED FTW
-		name="Connect Bones",
-		description="Connects Bones to Parents",
-		default=False
-		)
-	
-	use_local_location = BoolProperty( #SED FTW
-		name="Local Bone Location",
-		description="Use Local Bone Location",
-		default=False
+		description="Imports parent/child relationships and bone heirarchy",
+		default=True
 		)
 
 	def execute(self, context):
@@ -116,14 +104,6 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
 	def draw(self, context):
 		layout = self.layout
 
-		#col = layout.column()
-		#col.prop(self, "use_meshes")
-		#col.prop(self, "use_armature")
-
-		#row = layout.row()
-		#row.active = self.use_meshes and self.use_armature
-		#row.prop(self, "use_bind_armature")
-
 		box = layout.box()
 
 		col = box.column(align=True)
@@ -132,7 +112,6 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
 		sub = box.column()
 		sub.enabled = self.use_parents
 		sub.prop(self, "use_connected_bones")
-	
 
 	@classmethod
 	def poll(self, context):

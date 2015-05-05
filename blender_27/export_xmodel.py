@@ -24,7 +24,7 @@ Version: alpha 4
 
 Copyright (c) 2014 SE2Dev, CoDEmanX, Flybynyt -- blender-cod@online.de
 
-http://code.google.com/p/blender-cod/
+https://github.com/CoDEmanX/blender-cod
 
 """
 

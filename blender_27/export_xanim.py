@@ -22,9 +22,9 @@
 Blender-CoD: Blender Add-On for Call of Duty modding
 Version: alpha 3
 
-Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
+Copyright (c) 2011 CoDEmanX, Flybynyt, SE2Dev -- blender-cod@online.de
 
-http://code.google.com/p/blender-cod/
+https://github.com/CoDEmanX/blender-cod
 
 TODO
 - Test pose matrix exports, global or local?
@@ -141,17 +141,6 @@ def save(self, context, filepath="",
 
             file.write("PART %i\n" % i_bone)
 
-
-            """ Doesn't seem to be right... or maybe it is? root can't have rotation, it rather sets the global orientation
-            if bone.parent is None:
-                file.write("OFFSET 0.000000 0.000000 0.000000\n")
-                file.write("SCALE 1.000000 1.000000 1.000000\n")
-                file.write("X 1.000000, 0.000000, 0.000000\n")
-                file.write("Y 0.000000, 1.000000, 0.000000\n")
-                file.write("Z 0.000000, 0.000000, 1.000000\n\n")
-            else:
-            """
-
             b_tail = bone.head#a_matrix * bone.tail#SED
             file.write("OFFSET %.6f %.6f %.6f\n" % (b_tail[0], b_tail[1], b_tail[2]))
             file.write("SCALE 1.000000 1.000000 1.000000\n") # Is this even supported by CoD?
@@ -159,21 +148,6 @@ def save(self, context, filepath="",
             file.write("X %.6f %.6f %.6f\n" % (bone.matrix[0][0], bone.matrix[1][0], bone.matrix[2][0]))#original was correct derp
             file.write("Y %.6f %.6f %.6f\n" % (bone.matrix[0][1], bone.matrix[1][1], bone.matrix[2][1]))
             file.write("Z %.6f %.6f %.6f\n\n" % (bone.matrix[0][2], bone.matrix[1][2], bone.matrix[2][2]))
-
-            #file.write("X %.6f %.6f %.6f\n" % (bone.matrix[0][0], bone.matrix[0][1], bone.matrix[0][2]))#SED
-            #file.write("Y %.6f %.6f %.6f\n" % (bone.matrix[1][0], bone.matrix[1][1], bone.matrix[1][2]))
-            #file.write("Z %.6f %.6f %.6f\n\n" % (bone.matrix[2][0], bone.matrix[2][1], bone.matrix[2][2]))
-
-
-            """
-            # Is a local matrix used (above) or a global?
-            # Rest pose bone roll shouldn't matter if local is used... o_O
-            # Note: Converting to xanim delta doesn't allow bone moves (only root?)
-            b_matrix = a_matrix * bone.matrix
-            file.write("X %.6f %.6f %.6f\n" % (b_matrix[0][0], b_matrix[1][0], b_matrix[2][0]))
-            file.write("Y %.6f %.6f %.6f\n" % (b_matrix[0][1], b_matrix[1][1], b_matrix[2][1]))
-            file.write("Z %.6f %.6f %.6f\n" % (b_matrix[0][2], b_matrix[1][2], b_matrix[2][2]))
-            """
 
     # Blender timeline markers to notetrack nodes
     markers = []

@@ -24,7 +24,7 @@ Version: alpha 3
 
 Copyright (c) 2011 CoDEmanX, Flybynyt, SE2Dev -- blender-cod@online.de
 
-http://code.google.com/p/blender-cod/
+https://github.com/CoDEmanX/blender-cod
 
 NOTES
 - Code is in early state of development and work in progress!
@@ -53,15 +53,6 @@ def round_matrix_3x3(mat, precision=6):
     return Matrix(((round(mat[0][0],precision), round(mat[0][1],precision), round(mat[0][2],precision)),
                 (round(mat[1][0],precision), round(mat[1][1],precision), round(mat[1][2],precision)),
                 (round(mat[2][0],precision), round(mat[2][1],precision), round(mat[2][2],precision))))
-
-#def getRoll(bone):
-#    mat = bone.matrix_local.to_3x3()
-#    quat = mat.to_quaternion()
-#    if abs(quat.w) < 1e-4:
-#        roll = pi
-#    else:
-#        roll = 2*atan(quat.y/quat.w)
-#    return roll
 
 #http://gamedev.stackexchange.com/questions/32529/calculating-the-correct-roll-from-a-bone-transform-matrix
 def vec_roll_to_mat3(vec, roll):
@@ -111,10 +102,10 @@ def openImage(path, filename): #without extension
         img = bpy.data.images[filename]
     except:
         try:
-            img = bpy.data.images.load(filepath=(path+filename+".dds"))#bpy.ops.image.open(filepath=(path+filename+".dds"))
+            img = bpy.data.images.load(filepath=(path+filename+".dds"))
         except:
             try:
-                img = bpy.data.images.load(filepath=(path+filename+".tga"))#bpy.ops.image.open(filepath=(path+filename+".tga"))
+                img = bpy.data.images.load(filepath=(path+filename+".tga"))
             except:
                 return False
             else:
@@ -131,10 +122,6 @@ def openImage(path, filename): #without extension
     
 
 def load(self, context, filepath="", use_parents=True, use_connected_bones=False, use_local_location=False):
-    #raise NameError("HAAALP")
-    #bpy.types.Bone.pmat_x = bpy.props.FloatVectorProperty(name = "pMat.x", size = 4, default = (0.0, 0.0, 0.0, 0.0) )
-    #bpy.types.Bone.pmat_y = bpy.props.FloatVectorProperty(name = "pMat.y", size = 4, default = (0.0, 0.0, 0.0, 0.0) )
-    #bpy.types.Bone.pmat_z = bpy.props.FloatVectorProperty(name = "pMat.z", size = 4, default = (0.0, 0.0, 0.0, 0.0) )
 
     test_0 = []
     test_1 = []
@@ -154,15 +141,14 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
     bone_name_table = []
     numverts = 0
     vert_i = 0
-    vert_table = [] # allocate table? [0]*numverts
-    #vert_group_table = [] # see http://wiki.blender.org/index.php/Dev:2.5/Py/Scripts/Cookbook/Code_snippets/Armatures#Rigged_mesh for details
+    vert_table = []
     face_i = 0
     face_tmp = []
     face_table = []
     bones_influencing_num = 0
     bones_influencing_i = 0
     numfaces = 0
-    uv_table = []#2014
+    uv_table = []
     uv_img_id_table = []
     mat_img_table = []
     mat_table = []
@@ -183,7 +169,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
         bpy.ops.object.mode_set(mode='OBJECT')
         #tag_weapon = arm_ob.["tag_weapon"]
 
-    bpy.ops.object.select_all(False)#possibly unneeded
+    bpy.ops.object.select_all(False) #possibly unneeded
 
     print("\nImporting %s" % filepath)
 
@@ -212,7 +198,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 
         elif state == 2 and line_split[0] == "NUMBONES":
             numbones = int(line_split[1])
-            vert_group_table = {} #SED
+            vert_group_table = {}
             for i in range(numbones):
                 vert_group_table[i] = []
             state = 3
@@ -224,10 +210,8 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
                 return error_string
             bone_table.append((line_split[3][1:-1], int(line_split[2]), vec0, mat0))
 
-            bone_name_table.append(line_split[3][1:-1])#SED
-            #vert_group_table = {} #SED
-            #for i in range(numbones):
-            #    vert_group_table[i] = []
+            bone_name_table.append(line_split[3][1:-1])
+
             test_0.append(line_split[3][1:-1])
             test_1.append(int(line_split[2]))
             if numbones_i >= numbones-1:
@@ -251,11 +235,6 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
             # Note: we can't assign a new vector to tuple object, we need to change each value
 
             bone_table[bone_i][2].xyz = Vector((float(line_split[1]), float(line_split[2]), float(line_split[3])))
-            #print("\nPROBLEMATIC: %s" % bone_table[bone_i][2])
-            #NO ERROR HERE, but for some reason the whole table will contain the same vectors
-            #bone_table[bone_i][2][0] = float(line_split[1])
-            #bone_table[bone_i][2][1] = float(line_split[2])
-            #bone_table[bone_i][2][2] = float(line_split[3])
             test_2.append(Vector((float(line_split[1]),float(line_split[2]),float(line_split[3]))))
 
             state = 6
@@ -288,15 +267,10 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
         elif state == 9 and line_split[0] == "Z":
             line_split = line.replace(",", "").split()
             vec_roll = Vector((float(line_split[1]), float(line_split[2]), float(line_split[3])))
-            ##bone_table[bone_i][3][2] = vec_roll
-            #print("bone_table: %s" % bone_table[bone_i][3][2])
             
             m_col.append((float(line_split[1]), float(line_split[2]), float(line_split[3])))
-
-            #test_3.append(Vector(vec_roll))
             
             test_3.append(m_col)
-            #print("test_3: %s\n\n" % test_3[:])
 
             if bone_i >= numbones-1:
                 state = 10
@@ -326,19 +300,12 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
             state = 13
 
         elif state == 13 and line_split[0] == "BONES":
-            # TODO: process
             bones_influencing_num = int(line_split[1])
             bones_influencing_i = 0
             state= 14
 
         elif state == 14 and line_split[0] == "BONE":
-            # TODO: add bones to vert_table
-            #vgroups = {}
-            #vgroups['Base'] = [
-            #(0, 1.0), (1, 1.0), (2, 1.0), (3, 1.0),
-            #(4, 0.5), (5, 0.5), (6, 0.5), (7, 0.5)]
-            #vert_group_table[bone_name_table[line_split[1]]].append((vert_i, line_split[2]))#SED ADDED THIS
-            vert_group_table[int(line_split[1])].append((vert_i-1, float(line_split[2]))) #SED ADDED THIS
+            vert_group_table[int(line_split[1])].append((vert_i-1, float(line_split[2]))) 
             
             if bones_influencing_i >= (bones_influencing_num - 1):
                 if vert_i >= numverts:
@@ -354,7 +321,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
             state = 16
             
         elif state == 16: #and line_split[0] == "TRI":
-            mat_id = int(line_split[2])#starts at 0
+            mat_id = int(line_split[2]) #starts at 0
             for i in range((mat_id+1) - (len(mat_table))):
                 mat_table.append([])
             uv_img_id_table.append(mat_id)
@@ -363,7 +330,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
             state = 17
             
         elif (state == 17 or state == 21 or state == 25) and line_split[0] == "VERT":
-            #print("face_tmp length: %i" % len(face_tmp))
+            
             mat_table[mat_id].append(int(line_split[1]))
             face_tmp.append(int(line_split[1]))
             state += 1
@@ -389,19 +356,16 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
             face_tmp[0] = face_tmp[2]#2014
             face_tmp[2] = v0#2014
             face_table.append(face_tmp)
-            #uv_table[uv_map_id].append(uv_tmp)
+    
             uv_table.append(uv_tmp)
 
             #prepare for next tri
             if(line_split[0] == "TRI"):
                 uv_map_id = int(line_split[2])
-
                 mat_id = int(line_split[2])#starts at 0
                 for i in range((mat_id+1) - (len(mat_table))):
                     mat_table.append([])
                 uv_img_id_table.append(mat_id)
-                #for i in range((uv_map_id+1) - (len(uv_table))):
-                #    uv_table.append([])
 
                 uv_tmp = []
             
@@ -438,7 +402,6 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 
             tmp = 0
 
-            #for i in range(len(uv_table)-1): #this -1 was causing the last tri to be imported as default
             for i in range(len(uv_table)):
                 uv[tmp].uv = uv_table[i][0]
                 tmp+=1
@@ -446,11 +409,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
                 tmp+=1
                 uv[tmp].uv = uv_table[i][2]
                 tmp+=1
-
-                #print(uv[tmp].uv)
-
-
-
+                
             state = 31
 
         elif state == 31 and line_split[0] == "MATERIAL":
@@ -506,18 +465,12 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
             
             bpy.ops.object.mode_set(mode='OBJECT')
             mesh_ob.vertex_groups.remove(mesh_ob.vertex_groups["Material"])
-            #Get material names - should probably use try
-            
-            #print(line_split[4][7:]) #color
-            #print(line_split[5][7:-1]) #normal
-            #state = 32 - temp fix in order to get all of the materials
 
         else: #elif state == 16:
             #UNDONE
             #print("eh? state is %i line: %s" % (state, line))
             foo = "bar"
             pass
-
 
     #Apply The UV Images for Textured Viewmode
     i = 0
@@ -549,38 +502,24 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
     ob.name = name
     amt = ob.data
     amt.name = name + "Amt"
-    #amt.show_axes = True
 
     # Create bones
     bpy.ops.object.mode_set(mode='EDIT')
-    #for (bname, pname, vector, matrix) in boneTable:
-    #i = 0
 
-    bones_i = -1#
-    #print(test_0)
+    bones_i = -1
     for (t0, t1, t2, t3) in zip(test_0, test_1, test_2, test_3):
 
-        t0 = t0.lower()#SED
+        t0 = t0.lower()
         t3 = Matrix(t3).transposed()
 
         bone = amt.edit_bones.new(t0)
-        #print(t0)
-        bone.use_local_location = False #SED
+        bone.use_local_location = False
         
-        """bone.head = (0,0,0)
-        bone.tail = (0,1,0)#t3[1]
-        bone.transform(t3)
-        bone.translate(t2)"""
-        #just in case
         axis, roll = mat3_to_vec_roll(t3)
         bone.head = t2
         bone.tail = t2 + axis
-        #print(t2)
-        #print(t2+axis)
         bone.roll = roll
         
-        #bone.roll = 0#getRoll(t3)#TEMPORARY (2014) SED
-        #bone.tail = (0,1,0)
         if t1 != -1:
             parent = amt.edit_bones[t1]
             if(use_parents == True):
@@ -598,6 +537,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
         grp = mesh_ob.vertex_groups.new(bone_name_table[name].lower())
         for (v, w) in vgroup:
             grp.add([v], w, 'REPLACE')
+            
     #Add Armature Modifier
     mod = mesh_ob.modifiers.new('Armature Rig', 'ARMATURE')
     mod.object = ob
@@ -609,10 +549,10 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 
     ob = bpy.context.object  
     
-    bpy.types.PoseBone.base_mat = bpy.props.FloatVectorProperty(name="Base Rotation Matrix (from File)", subtype="MATRIX", size=16)#SED
-    bpy.types.PoseBone.rest_mat = bpy.props.FloatVectorProperty(name="Rest Rotation Matrix (from Blender)", subtype="MATRIX", size=16)#SED    
+    bpy.types.PoseBone.base_mat = bpy.props.FloatVectorProperty(name="Base Rotation Matrix (from File)", subtype="MATRIX", size=16)
+    bpy.types.PoseBone.rest_mat = bpy.props.FloatVectorProperty(name="Rest Rotation Matrix (from Blender)", subtype="MATRIX", size=16)  
     
-    for (t0, t1, t2, t3) in zip(test_0, test_1, test_2, test_3): #SED
+    for (t0, t1, t2, t3) in zip(test_0, test_1, test_2, test_3):
         ob.pose.bones.data.bones[t0.lower()].base_mat[0] = Matrix(t3).to_4x4()[0]
         ob.pose.bones.data.bones[t0.lower()].base_mat[1] = Matrix(t3).to_4x4()[1]
         ob.pose.bones.data.bones[t0.lower()].base_mat[2] = Matrix(t3).to_4x4()[2]
@@ -623,7 +563,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
         ob.pose.bones.data.bones[t0.lower()].rest_mat[3] = ob.pose.bones.data.bones[t0.lower()].matrix[3]
 
 
-    #DEVSTUFF
+    #temp fix for automatically attaching weapons to viewmodels
     try:
         ob.pose.bones['j_gun'].matrix
     except:
@@ -631,19 +571,13 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
     else:
         if arm_is_active:
             tvec =  -ob.pose.bones['j_gun'].matrix.translation
-            #bpy.ops.object.mode_set(mode='EDIT')
         
             ob.matrix_local = tag_weapon_mat
             mesh_ob.matrix_local = tag_weapon_mat
             parent_set(ob, arm_ob, 'tag_weapon')
             parent_set(mesh_ob, arm_ob, 'tag_weapon')
-            ob.matrix_local.translation = tvec#Vector((0,-1,0))
-            mesh_ob.matrix_local.translation = tvec#Vector((0,-1,0))
-            
-           # print(tag_weapon_mat)
-            #print(ob.pose.bones['j_gun'].matrix)
-        #ob.parent = arm_ob.pose.bones["tag_weapon"]
-        #mesh_ob.parent - arm_ob.pose.bones["tag_weapon"]
+            ob.matrix_local.translation = tvec
+            mesh_ob.matrix_local.translation = tvec
 
     
     file.close()
