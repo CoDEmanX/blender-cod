@@ -1,9 +1,20 @@
-#COPYRIGHT SE2DEV 2013
-#note - xmodel & rest_anim have same offset values - but different rotation matricies - todo - fix
-######################
-# additionally - imported xmodel bones have a different rotation matrix than the file - todo -fix
-# xanim rest files have this broken matrix, imported xanims also have the same broken matrix
-################################################
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
 
 import bpy
 from mathutils import *
@@ -95,7 +106,7 @@ def load(self, context, filepath=""):
                         version = line_split[1]
                         state = 2
                 elif state == 1 and line_split[0] == "VERSION":
-                        load_xanim(self,context,filepath)
+                        load_xanim(self,context,file)
                         return {"FINISHED"}
 
                 elif state == 2 and line_split[0] == "NUMPARTS":
@@ -277,7 +288,8 @@ def load(self, context, filepath=""):
 
 
 
-def load_xanim(self, context, filepath=""):
+#def load_xanim(self, context, filepath=""):
+def load_xanim(self, context, file):
         time_start = time.time()
         scene = bpy.context.scene #bpy.data.scenes["Scene"].render.fps
         ob = bpy.context.object
@@ -308,7 +320,7 @@ def load_xanim(self, context, filepath=""):
 
         #return {'FINISHED'}
 
-        state = 0
+        state = 2 #the first two parts were parsed by the previous function
 
         """print("\nImporting %s" % filepath)
 
@@ -418,7 +430,17 @@ def load_xanim(self, context, filepath=""):
                                 state = 6
                         else:
                                 state = 7
-                
+                elif line_split[0] == "NUMKEYS":
+                        #ignore the number after NUMKEYS as it isnt really needed
+                        bpy.ops.object.mode_set(mode='OBJECT')
+                        state = 13
+                elif state == 13 and line_split[0] == "FRAME":
+                        nt_name = line_split[2]
+                        notetrack = bpy.context.scene.timeline_markers.new(nt_name)
+                        notetrack.frame = int(line_split[1])#bpy.context.scene.timeline_markers[nt_name].frame = int(line_split[1])
+        
+                        state = 13
+
         #for i in range(10):
         #       ob.pose.bones.data.bones['tag_origin'].location += Vector((1,1,1))
         #       ob.pose.bones.data.bones['tag_origin'].keyframe_insert(data_path = "location",index = -1,frame = i, group="bone_a")
@@ -431,5 +453,8 @@ def load_xanim(self, context, filepath=""):
         
         bpy.context.scene.frame_current = firstframe
         bpy.context.scene.update() #probably updates teh scene
+
+        bpy.ops.object.mode_set(mode='POSE')
+        
         print("imported in: " + str(time.time()-time_start) + " seconds")
         return {'FINISHED'}

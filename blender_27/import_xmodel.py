@@ -22,7 +22,7 @@
 Blender-CoD: Blender Add-On for Call of Duty modding
 Version: alpha 3
 
-Copyright (c) 2011 CoDEmanX, Flybynyt -- blender-cod@online.de
+Copyright (c) 2011 CoDEmanX, Flybynyt, SE2Dev -- blender-cod@online.de
 
 http://code.google.com/p/blender-cod/
 
