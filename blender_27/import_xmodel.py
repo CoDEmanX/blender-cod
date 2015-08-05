@@ -34,6 +34,7 @@ TODO
 - Implement full xmodel import
 
 """
+
 #scale = 0.0253999862840074 for 1 bu = 1in
 import os
 import bpy
@@ -121,7 +122,7 @@ def openImage(path, filename): #without extension
                 
     
 
-def load(self, context, filepath="", use_parents=True, use_connected_bones=False, use_local_location=False):
+def load(self, context, filepath="", use_parents=True, use_connected_bones=False, use_local_location=False, attach_model=False):
 
     test_0 = []
     test_1 = []
@@ -155,6 +156,15 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 
     if bpy.context.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode='OBJECT')
+
+    ob_old = bpy.context.scene.objects.active
+    try:
+        if bpy.context.scene.objects.active.type != 'ARMATURE':
+            print("not a armature selected")
+            attach_model = False
+    except:
+        #print("cerere")
+        attach_model = False
 
     try:
         bpy.context.scene.objects.active.pose.bones["tag_weapon"]
@@ -482,7 +492,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
         else:
             i += 1
 
-    name = "Armature"
+    name = mesh_ob.name + " Armature"
     origin = Vector((0,0,0))
     boneTable = bone_table
 
@@ -562,9 +572,22 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
         ob.pose.bones.data.bones[t0.lower()].rest_mat[2] = ob.pose.bones.data.bones[t0.lower()].matrix[2]
         ob.pose.bones.data.bones[t0.lower()].rest_mat[3] = ob.pose.bones.data.bones[t0.lower()].matrix[3]
 
+#test for parenting
+    mesh_ob.parent = ob
+    mesh_ob.parent_bone = ob.pose.bones[0].name;
+    #mesh_ob.location = (0, -1, 0);
+
+    if attach_model:
+        ob.parent = ob_old
+        if ob.pose.bones[0].name == "j_gun":
+            ob.parent_bone = "tag_weapon"
+        else:
+            ob.parent_bone = ob.pose.bones[0].name
+        ob.parent_type = 'BONE'
+        ob.location = (0, -1, 0)
 
     #temp fix for automatically attaching weapons to viewmodels
-    try:
+    """try:
         ob.pose.bones['j_gun'].matrix
     except:
         do="nothing"
@@ -577,7 +600,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
             parent_set(ob, arm_ob, 'tag_weapon')
             parent_set(mesh_ob, arm_ob, 'tag_weapon')
             ob.matrix_local.translation = tvec
-            mesh_ob.matrix_local.translation = tvec
+            mesh_ob.matrix_local.translation = tvec"""
 
     
     file.close()

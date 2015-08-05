@@ -88,6 +88,12 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
 		default=True
 		)
 
+	attach_model = BoolProperty(
+		name="Attach Model",
+		description="Attach Head to Body, Gun to Hands etc.",
+		default=False
+		)
+
 	def execute(self, context):
 		from . import import_xmodel
 		start_time = time.clock()
@@ -108,10 +114,11 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
 
 		col = box.column(align=True)
 		col.prop(self, "use_parents")
+		col.prop(self, "attach_model")
 
-		sub = box.column()
-		sub.enabled = self.use_parents
-		sub.prop(self, "use_connected_bones")
+		#sub = box.column()
+		#sub.enabled = self.use_parents
+		#sub.prop(self, "use_connected_bones")
 
 	@classmethod
 	def poll(self, context):
