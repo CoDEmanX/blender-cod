@@ -16,34 +16,55 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# <pep8 compliant>
-
 """
-Blender-CoD: Blender Add-On for Call of Duty modding
-Version: alpha 3
+Blender-CoD: Blender Add-On for Call of Duty Modding
+Version: Alpha 4
 
-Copyright (c) 2011 CoDEmanX, Flybynyt, SE2Dev -- blender-cod@online.de
+Copyright (c) 2015 CoDEmanX, Flybynyt, SE2Dev -- blender-cod@online.de
 
 https://github.com/CoDEmanX/blender-cod
-
-TODO
-- UI for xmodel and xanim import (planned for alpha 4/5)
-
 """
 
 bl_info = {
-	"name": "Blender-CoD - Add-On for Call of Duty modding (alpha 3)",
+	"name": "Blender-CoD",
 	"author": "CoDEmanX, Flybynyt, SE2Dev", 
-	"version": (0, 3, 5),
+	"version": (0, 4, 0),
 	"blender": (2, 62, 3),
 	"location": "File > Import  |  File > Export",
-	"description": "Export models to *.XMODEL_EXPORT and animations to *.XANIM_EXPORT",
+	"description": "Import-Export XModel_Export, XAnim_Export, and TAnim_Export",
 	"warning": "Alpha version, please report any bugs!",
 	"wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Import-Export/Call_of_Duty_IO",
 	"tracker_url": "http://projects.blender.org/tracker/index.php?func=detail&aid=30482",
 	"support": "TESTING",
 	"category": "Import-Export"
 }
+
+import bpy
+from bpy.types import Operator, AddonPreferences
+from bpy.props import BoolProperty, IntProperty, FloatProperty, StringProperty, EnumProperty
+
+def update_submenu_mode(self, context):
+	try:
+		unregister()
+	except:
+		pass
+	register()
+
+class BlenderCoD_Preferences(AddonPreferences):
+	bl_idname = __name__
+
+	use_submenu = BoolProperty(
+			name="Group Import/Export Buttons",
+			default=False,
+			update=update_submenu_mode,
+			)
+
+	def draw(self, context):
+		layout = self.layout
+		layout.prop(self, "use_submenu")
+
+
+
 
 # To support reload properly, try to access a package var, if it's there, reload everything
 if "bpy" in locals():
@@ -56,18 +77,18 @@ if "bpy" in locals():
 		imp.reload(import_xanim)
 	if "export_xanim" in locals():
 		imp.reload(export_xanim)
+else:
+	from . import import_xmodel, export_xmodel, import_xanim, export_xanim
 
-import bpy
-from bpy.props import BoolProperty, IntProperty, FloatProperty, StringProperty, EnumProperty
+
 import bpy_extras.io_utils
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 import time
 
-# Planned for alpha 4/5
-class ImportXmodel(bpy.types.Operator, ImportHelper):
-	"""Load a CoD XMODEL_EXPORT File"""
+class ImportXModel(bpy.types.Operator, ImportHelper):
 	bl_idname = "import_scene.xmodel"
 	bl_label = "Import XMODEL_EXPORT"
+	bl_description = "Import a CoD XMODEL_EXPORT File"
 	bl_options = {'PRESET'}
 
 	filename_ext = ".XMODEL_EXPORT"
@@ -124,10 +145,11 @@ class ImportXmodel(bpy.types.Operator, ImportHelper):
 	def poll(self, context):
 		return (context.scene is not None)
 
-class ImportXanim(bpy.types.Operator, ImportHelper):
-	"""Load a CoD XANIM_EXPORT File"""
+
+class ImportXAnim(bpy.types.Operator, ImportHelper):
 	bl_idname = "import_scene.xanim"
 	bl_label = "Import XANIM_EXPORT"
+	bl_description = "Import a CoD XANIM_EXPORT or TANIM_EXPORT File"
 	bl_options = {'PRESET'}
 
 	filename_ext = ".XANIM_EXPORT"
@@ -136,14 +158,12 @@ class ImportXanim(bpy.types.Operator, ImportHelper):
 	def execute(self, context):
 		# print("Selected: " + context.active_object.name)
 		from . import import_xanim
-
 		return import_xanim.load(self, context, **self.as_keywords(ignore=("filter_glob",)))
 
-class ExportXmodel(bpy.types.Operator, ExportHelper):
-	"""Save a CoD XMODEL_EXPORT File"""
-
+class ExportXModel(bpy.types.Operator, ExportHelper):
 	bl_idname = "export_scene.xmodel"
 	bl_label = 'Export XMODEL_EXPORT'
+	bl_description = "Export a CoD XMODEL_EXPORT File"
 	bl_options = {'PRESET'}
 
 	filename_ext = ".XMODEL_EXPORT"
@@ -321,11 +341,10 @@ class ExportXmodel(bpy.types.Operator, ExportHelper):
 	def poll(self, context):
 		return (context.scene is not None)
 
-class ExportXanim(bpy.types.Operator, ExportHelper):
-	"""Save a XMODEL_XANIM File"""
-
+class ExportXAnim(bpy.types.Operator, ExportHelper):
 	bl_idname = "export_scene.xanim"
 	bl_label = 'Export XANIM_EXPORT'
+	bl_description = "Export a CoD XANIM_EXPORT File"
 	bl_options = {'PRESET'}
 
 	filename_ext = ".XANIM_EXPORT"
@@ -456,25 +475,74 @@ class ExportXanim(bpy.types.Operator, ExportHelper):
 	def poll(self, context):
 		return (context.scene is not None)
 
+
+def get_operator(idname):
+    op = bpy.ops
+    for attr in idname.split("."):
+        op = getattr(op, attr)
+    return op
+
+def bc_import_items_cb(self, context):
+	l = ((ImportXModel.bl_idname,'XModel (.XMODEL_EXPORT)',ImportXModel.bl_description), (ImportXAnim.bl_idname,'XAnim (.XANIM_EXPORT)',ImportXAnim.bl_description))
+	bc_import_items_cb.lookup = {id: name for id, name, desc in l}
+	return l
+
+def bc_export_items_cb(self, context):
+	l = ((ExportXModel.bl_idname,'XModel (.XMODEL_EXPORT)',ExportXModel.bl_description), (ExportXAnim.bl_idname,'XAnim (.XANIM_EXPORT)',ExportXAnim.bl_description))
+	bc_export_items_cb.lookup = {id: name for id, name, desc in l}
+	return l
+
+class BC_Import_Submenu(bpy.types.Operator):
+	bl_idname = "import_scene.cod"
+	bl_label = "Call of Duty"
+
+	iprop = bpy.props.EnumProperty(items=bc_import_items_cb)
+
+	def execute(self, context):
+		get_operator(self.iprop)('INVOKE_DEFAULT')
+		return {'FINISHED'}
+
+class BC_Export_Submenu(bpy.types.Operator):
+	bl_idname = "export_scene.cod"
+	bl_label = BC_Import_Submenu.bl_label
+
+	eprop = bpy.props.EnumProperty(items=bc_export_items_cb)
+
+	def execute(self, context):
+		get_operator(self.eprop)('INVOKE_DEFAULT')
+		return {'FINISHED'}
+
 def menu_func_xmodel_import(self, context):
-	self.layout.operator(ImportXmodel.bl_idname, text="CoD Xmodel (.XMODEL_EXPORT)")
+	self.layout.operator(ImportXModel.bl_idname, text="CoD XModel (.XMODEL_EXPORT)")
 
 def menu_func_xanim_import(self, context):
-	self.layout.operator(ImportXanim.bl_idname, text="CoD Xanim (.XANIM_EXPORT)")
+	self.layout.operator(ImportXAnim.bl_idname, text="CoD XAnim (.XANIM_EXPORT)")
 
 def menu_func_xmodel_export(self, context):
-	self.layout.operator(ExportXmodel.bl_idname, text="CoD Xmodel (.XMODEL_EXPORT)")
+	self.layout.operator(ExportXModel.bl_idname, text="CoD XModel (.XMODEL_EXPORT)")
 
 def menu_func_xanim_export(self, context):
-	self.layout.operator(ExportXanim.bl_idname, text="CoD Xanim (.XANIM_EXPORT)")
+	self.layout.operator(ExportXAnim.bl_idname, text="CoD XAnim (.XANIM_EXPORT)")
+
+def menu_func_import_submenu(self, context):
+	self.layout.operator_menu_enum(BC_Import_Submenu.bl_idname, "iprop", text=BC_Import_Submenu.bl_label)
+
+def menu_func_export_submenu(self, context):
+	self.layout.operator_menu_enum(BC_Export_Submenu.bl_idname, "eprop", text=BC_Export_Submenu.bl_label)
 
 def register():
 	bpy.utils.register_module(__name__)
-
-	bpy.types.INFO_MT_file_import.append(menu_func_xmodel_import)
-	bpy.types.INFO_MT_file_import.append(menu_func_xanim_import)
-	bpy.types.INFO_MT_file_export.append(menu_func_xmodel_export)
-	bpy.types.INFO_MT_file_export.append(menu_func_xanim_export)
+	preferences = bpy.context.user_preferences.addons[__name__].preferences
+	
+	if not preferences.use_submenu:
+		bpy.types.INFO_MT_file_import.append(menu_func_xmodel_import)
+		bpy.types.INFO_MT_file_import.append(menu_func_xanim_import)
+		bpy.types.INFO_MT_file_export.append(menu_func_xanim_import)
+		bpy.types.INFO_MT_file_export.append(menu_func_xmodel_export)
+	else:
+		bpy.types.INFO_MT_file_import.append(menu_func_import_submenu)
+		bpy.types.INFO_MT_file_export.append(menu_func_export_submenu)
+ 
 
 def unregister():
 	bpy.utils.unregister_module(__name__)
@@ -484,5 +552,8 @@ def unregister():
 	bpy.types.INFO_MT_file_export.remove(menu_func_xmodel_export)
 	bpy.types.INFO_MT_file_export.remove(menu_func_xanim_export)
 
+	bpy.types.INFO_MT_file_import.remove(menu_func_import_submenu)
+	bpy.types.INFO_MT_file_export.remove(menu_func_export_submenu)
+ 
 if __name__ == "__main__":
 	register()
