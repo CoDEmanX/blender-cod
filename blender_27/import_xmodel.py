@@ -20,18 +20,15 @@
 
 """
 Blender-CoD: Blender Add-On for Call of Duty modding
-Version: alpha 3
+Version: alpha 4
 
-Copyright (c) 2011 CoDEmanX, Flybynyt, SE2Dev -- blender-cod@online.de
+Copyright (c) 2015 CoDEmanX, Flybynyt, SE2Dev -- blender-cod@online.de
 
 https://github.com/CoDEmanX/blender-cod
 
 NOTES
 - Code is in early state of development and work in progress!
 - Importing rigs from XMODEL_EXPORT v6 works, but the code is really messy.
-
-TODO
-- Implement full xmodel import
 
 """
 
@@ -44,6 +41,7 @@ import math
 from math import * 
 #from mathutils.geometry import tesselate_polygon
 #from io_utils import load_image, unpack_list, unpack_face_list
+
 
 def parent_set(object, armature, bone):
 	object.parent = armature
@@ -118,11 +116,10 @@ def openImage(path, filename): #without extension
 	else:
 		return img
 	
-	
-				
-	
 
 def load(self, context, filepath="", use_parents=True, use_connected_bones=False, use_local_location=False, attach_model=False):
+
+	g_modelName = os.path.splitext(os.path.basename(filepath))[0]
 
 	test_0 = []
 	test_1 = []
@@ -258,6 +255,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 			bone_table[bone_i][3][0] = Vector((float(line_split[1]), float(line_split[2]), float(line_split[3])))
 
 			""" Use something like this:
+
 			bone.align_roll(targetmatrix[2])
 			roll = roll%360 #nicer to have it 0-359.99...
 			"""
@@ -393,10 +391,10 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 		elif state == 30:
 			print("Adding mesh!")
 			
-			me = bpy.data.meshes.new("pymesh")
+			me = bpy.data.meshes.new(g_modelName+"_mesh")
 			me.from_pydata(vert_table, [], face_table)
 			me.update()
-			mesh_ob = bpy.data.objects.new("Py-Mesh", me)			
+			mesh_ob = bpy.data.objects.new(g_modelName, me)			
 			bpy.context.scene.objects.link(mesh_ob)
 
 			bpy.context.scene.objects.active = mesh_ob
@@ -492,7 +490,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 		else:
 			i += 1
 
-	name = mesh_ob.name + " Armature"
+	name = mesh_ob.name + "_skeleton"
 	origin = Vector((0,0,0))
 	boneTable = bone_table
 
@@ -511,7 +509,7 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 	ob.show_x_ray = True
 	ob.name = name
 	amt = ob.data
-	amt.name = name + "Amt"
+	amt.name = name + "_amt"
 
 	# Create bones
 	bpy.ops.object.mode_set(mode='EDIT')
