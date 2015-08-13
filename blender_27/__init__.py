@@ -477,10 +477,10 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
 
 
 def get_operator(idname):
-    op = bpy.ops
-    for attr in idname.split("."):
-        op = getattr(op, attr)
-    return op
+	op = bpy.ops
+	for attr in idname.split("."):
+		op = getattr(op, attr)
+	return op
 
 def bc_import_items_cb(self, context):
 	l = ((ImportXModel.bl_idname,'XModel (.XMODEL_EXPORT)',ImportXModel.bl_description), (ImportXAnim.bl_idname,'XAnim (.XANIM_EXPORT)',ImportXAnim.bl_description))
