@@ -1,20 +1,25 @@
-# ![](https://github.com/CoDEmanX/blender-cod/blob/master/blender-cod-logo.png) Blender-CoD #
+# ![Blender-CoD logo](https://github.com/CoDEmanX/blender-cod/blob/master/blender-cod-logo.png) Blender-CoD #
 *Blender Add-On for Call of Duty® modding*
 
-Create models and animations for CoD using free Blender and Blender-CoD addon (without Maya)!
+Import / export addon for Call of Duty's intermediate model and animation plaintext file formats - no Maya required.
 
-This is a collection of Python scripts to extend Blender with support for Call of Duty's xmodel and xanim intermediate plaintext file formats.
+**Download**: Checkout with Git or see [Releases](https://github.com/CoDEmanX/blender-cod/releases).
 
-You can export models, animations and notetracks to any CoD title:
-  * XMODEL\_EXPORT v5 (vCoD, CoD:UO)
-  * XMODEL\_EXPORT v6 (CoD2-CoD7)
-  * XANIM\_EXPORT v3 (all)
-  * NT\_EXPORT (CoD5, CoD7)
+Model, animation and notetrack export to any CoD title:
+  * XMODEL_EXPORT v5 (vCoD, CoD:UO)
+  * XMODEL_EXPORT v6 (CoD2-CoD7)
+  * XANIM_EXPORT v3 (all)
+  * NT_EXPORT (CoD5, CoD7)
 
+Improved model and animation import by SE2Dev (unreleased):<br>
+https://github.com/CoDEmanX/blender-cod/tree/master/blender_27
+
+Use in combination with xAnimExtrator / Lime:<br>
+http://tom-crowley.co.uk/downloads/
 
 ***Note: Feature description not up-to-date!***
 
-Experimental import is available for XMODEL\_EXPORT v6, but lacks materials, UV mapping etc. Armatures may be imported wrong, weights aren't handled yet.
+Experimental import is available for XMODEL_EXPORT v6, but lacks materials, UV mapping etc. Armatures may be imported wrong, weights aren't handled yet.
 
 Original export scripts for Blender 2.4x by Flybynyt<br>
 Rewritten scripts for Blender 2.5x and above by CoDEmanX<br>
@@ -28,7 +33,7 @@ Getting new 3D content into Call of Duty games can be expensive, because the off
 
 Blender-CoD is a **free**, **open-source** project and provides a plugin for the as well free and open-source **3D modelling software [Blender](http://www.blender.org/)**.
 
-It adds support for XMODEL\_EXPORT v5/v6 and XANIM\_EXPORT v3 formats, which can be compiled to xmodels and xanims using the mod tools. All CoD titles are supported for export (Blender -> Asset Manager -> Call of Duty).
+It adds support for XMODEL_EXPORT v5/v6 and XANIM_EXPORT v3 formats, which can be compiled to xmodels and xanims using the mod tools. All CoD titles are supported for export (Blender -> Asset Manager -> Call of Duty).
 
 You can basically import any supported 3d model into Blender (e.g. Blender files, Wavefront OBJ, Collada DAE, 3ds Max 3DS and more), edit it and finally export it for CoD using the Blender-CoD Add-On.
 
@@ -43,7 +48,7 @@ You can basically import any supported 3d model into Blender (e.g. Blender files
   * CoD7 (Black Ops)
 
 
-### XMODEL\_EXPORT v5/v6 ###
+### XMODEL_EXPORT v5/v6 ###
   * Supports mesh export with automatic triangulation
   * Armature export (bones)
   * Vertex colors (v6 only, optionally: use color as alpha)
@@ -54,7 +59,7 @@ You can basically import any supported 3d model into Blender (e.g. Blender files
   * User Interface: File > Export > CoD Xmodel (.XMODEL\_EXPORT)
 
 
-### XANIM\_EXPORT v3 ###
+### XANIM_EXPORT v3 ###
   * Supports armature animation export
   * Frame range and framerate can be specified
   * Notetrack export for all CoD titles (minds frame range settings)
@@ -87,14 +92,14 @@ You can basically import any supported 3d model into Blender (e.g. Blender files
 
 | Date | Version | Remarks |
 |:-----|:--------|:--------|
-| 15-Apr-12 | CoD4 Fastfile WAV Scanner | Extraction tool based on Python released (misc) |
+| 15-Apr-12 | CoD4 Fastfile WAV Scanner | Extraction tool written in Python released (misc) |
 | 12-Apr-12 | Blender-CoD Addon **v0.3.5** (alpha 3) | Added export option: Vertex colors as alpha |
 | 01-Apr-12 | Blender-CoD Addon **v0.3.4** (alpha 3) | Mesh import, Bmesh support (requires Blender 2.62.3+) |
-| 16-Feb-12 | Blender-CoD Addon **v0.3.3** (alpha 3) | Fixed [issue #5](https://code.google.com/p/blender-cod/issues/detail?id=#5) |
-| 25-Jan-12 | Blender-CoD Addon **v0.3.2** (alpha 3) | Fixed [issue #2](https://code.google.com/p/blender-cod/issues/detail?id=#2) and [issue #4](https://code.google.com/p/blender-cod/issues/detail?id=#4) |
-| 29-Nov-11 | Blender-CoD Addon **v0.3.1** (alpha 3) | Fixed [issue #3](https://code.google.com/p/blender-cod/issues/detail?id=#3) |
-| 22-Nov-11 | Blender-CoD Addon **v0.3.0** (alpha 3) | vCoD/UO & NT\_EXPORT support |
-| 09-Oct-11 | Blender-CoD Addon **v0.2.3** (alpha 2) | Fixed [issue #1](https://code.google.com/p/blender-cod/issues/detail?id=#1) |
+| 16-Feb-12 | Blender-CoD Addon **v0.3.3** (alpha 3) | Fixed [issue #5](https://github.com/CoDEmanX/blender-cod/issues/5) |
+| 25-Jan-12 | Blender-CoD Addon **v0.3.2** (alpha 3) | Fixed [issue #2](https://github.com/CoDEmanX/blender-cod/issues/2) and [issue #4](https://github.com/CoDEmanX/blender-cod/issues/4) |
+| 29-Nov-11 | Blender-CoD Addon **v0.3.1** (alpha 3) | Fixed [issue #3](https://github.com/CoDEmanX/blender-cod/issues/3) |
+| 22-Nov-11 | Blender-CoD Addon **v0.3.0** (alpha 3) | vCoD/UO & NT_EXPORT support |
+| 09-Oct-11 | Blender-CoD Addon **v0.2.3** (alpha 2) | Fixed [issue #1](https://github.com/CoDEmanX/blender-cod/issues/1) |
 | 29-Sep-11 | Blender-CoD Addon **v0.2.2** (alpha 2) | CoD2-CoD7 model & anim export |
 | 13-Jul-11 | _Start of project_ | Code testing and rewriting from scratch for Blender 2.5+ |
 
