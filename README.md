@@ -1,4 +1,4 @@
-# ![](https://github.com/CoDEmanX/blender-cod/blob/master/blender-cod-logo.png) Blender-CoD #
+﻿# ![](https://raw.githubusercontent.com/CoDEmanX/blender-cod/master/blender-cod-logo.png) Blender-CoD #
 *Blender Add-On for Call of Duty® modding*
 
 Create models and animations for CoD using free Blender and Blender-CoD addon (without Maya)!
