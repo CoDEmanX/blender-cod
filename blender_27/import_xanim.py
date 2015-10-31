@@ -30,6 +30,7 @@ import bpy
 from mathutils import *
 import math
 import time
+import os
 
 #def load(self, context, **keywords):filepath=""
 
@@ -44,8 +45,25 @@ def movebone(bone, matrix): #moves a bone independent of its children
 				child.matrix =   dmat.inverted() * cmats[child.name] 
 		return {'FINISHED'}
 
+def GetActionName(filepath):
+		str = os.path.splitext(filepath)[0]
+		return os.path.basename(str)
 
-def load(self, context, filepath=""):
+def load(self, context,  filepath=""):
+		ob = bpy.context.object
+		path = os.path.dirname(filepath) + "\\"
+
+		try:
+			ob.animation_data.action
+		except:
+			ob.animation_data_create()
+
+		for f in self.files:
+			load_anim(self, context, path + f.name)
+		
+		return {'FINISHED'}
+
+def load_anim(self, context, filepath=""):
 		time_start = time.time()
 		scene = bpy.context.scene #bpy.data.scenes["Scene"].render.fps
 		ob = bpy.context.object
@@ -69,6 +87,9 @@ def load(self, context, filepath=""):
 
 		print("\nImporting %s" % filepath)
 
+		ob.animation_data.action = bpy.data.actions.new(GetActionName(filepath))
+		ob.animation_data.action.use_fake_user = True
+
 		try:
 				file = open(filepath, "r")
 		except IOError:
@@ -90,7 +111,7 @@ def load(self, context, filepath=""):
 						version = line_split[1]
 						state = 2
 				elif state == 1 and line_split[0] == "VERSION":
-						load_xanim(self,context,file)
+						load_xanim(self, context, file)
 						return {"FINISHED"}
 
 				elif state == 2 and line_split[0] == "NUMPARTS":

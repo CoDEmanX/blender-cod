@@ -41,7 +41,7 @@ bl_info = {
 
 import bpy
 from bpy.types import Operator, AddonPreferences
-from bpy.props import BoolProperty, IntProperty, FloatProperty, StringProperty, EnumProperty
+from bpy.props import BoolProperty, IntProperty, FloatProperty, StringProperty, EnumProperty, CollectionProperty
 
 def update_submenu_mode(self, context):
 	try:
@@ -162,10 +162,12 @@ class ImportXAnim(bpy.types.Operator, ImportHelper):
 	filename_ext = ".XANIM_EXPORT"
 	filter_glob = StringProperty(default="*.XANIM_EXPORT;*.NT_EXPORT;*.TANIM_EXPORT", options={'HIDDEN'})
 
+	files = CollectionProperty(type=bpy.types.PropertyGroup)
+
 	def execute(self, context):
 		# print("Selected: " + context.active_object.name)
 		from . import import_xanim
-		return import_xanim.load(self, context, **self.as_keywords(ignore=("filter_glob",)))
+		return import_xanim.load(self, context, **self.as_keywords(ignore=("filter_glob", "files")))
 
 class ExportXModel(bpy.types.Operator, ExportHelper):
 	bl_idname = "export_scene.xmodel"
