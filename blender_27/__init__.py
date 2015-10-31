@@ -114,6 +114,12 @@ class ImportXModel(bpy.types.Operator, ImportHelper):
 		description="Attach Head to Body, Gun to Hands etc.",
 		default=False
 		)
+		
+	merge_skeleton = BoolProperty(
+		name="Merge Skeletons",
+		description="Merge Imported Skeleton with Selected Skeleton",
+		default=False
+		)
 
 	def execute(self, context):
 		from . import import_xmodel
@@ -136,6 +142,7 @@ class ImportXModel(bpy.types.Operator, ImportHelper):
 		col = box.column(align=True)
 		col.prop(self, "use_parents")
 		col.prop(self, "attach_model")
+		col.prop(self, "merge_skeleton")
 
 		#sub = box.column()
 		#sub.enabled = self.use_parents

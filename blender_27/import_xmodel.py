@@ -117,7 +117,76 @@ def openImage(path, filename): #without extension
 		return img
 	
 
-def load(self, context, filepath="", use_parents=True, use_connected_bones=False, use_local_location=False, attach_model=False):
+def reassign_children(ebs, bone1, bone2):
+	for child in bone2.children:
+		kid = ebs[child.name]
+		kid.parent = bone1
+		
+	bpy.ops.object.select_all(action='TOGGLE')  
+	bpy.ops.object.select_all(action='DESELECT')
+	
+	bone2.select = True;
+	#print("Deleting " + bone2.name)
+	bpy.ops.armature.delete()  
+
+def join_armatures(ob1, ob2, ob2_model):
+
+	
+	ob2_model_mat = ob2_model.matrix_world.copy()
+
+	ob2_model.modifiers.remove(ob2_model.modifiers[0])
+	
+	bpy.ops.object.mode_set(mode='OBJECT')
+		
+	bpy.ops.object.select_all(action='TOGGLE')  
+	bpy.ops.object.select_all(action='DESELECT')  
+	
+	bpy.context.scene.objects.active = ob1
+	ob1.select = True  
+	ob2.select = True
+	
+	bpy.ops.object.join()
+	
+	bpy.ops.object.mode_set(mode = 'EDIT')  
+	ebs = ob1.data.edit_bones
+	
+	for bone in ebs:
+		try:
+			t = ebs[bone.name+".001"]
+			reassign_children(ebs, bone, t)
+		except:
+			do="nothing"
+		else:
+			print(bone.name)
+			do="something"
+			
+	for bone in ebs:
+		if(bone.name.endswith(".001")):
+			#bpy.ops.object.select_all(action='TOGGLE')  
+			#bpy.ops.object.select_all(action='DESELECT')
+		
+			bone.select = True;
+			print("Deleting " + bone.name)
+			bpy.ops.armature.delete()  
+		
+	bpy.ops.object.mode_set(mode = 'OBJECT')  
+
+	ob2_model.matrix_world = ob2_model_mat
+
+	#ob = C.scene.objects["c_ger_zombie_head1_LOD_3"]
+
+	#ob1.data.update()
+	ob2_model.data.update()
+
+	mod = ob2_model.modifiers.new('Armature Rig', 'ARMATURE')
+	mod.object = ob1 #crashinator
+	mod.use_bone_envelopes = False
+	mod.use_vertex_groups = True
+
+def load(self, context, filepath="", use_parents=True, use_connected_bones=False, use_local_location=False, attach_model=False, merge_skeleton=False):
+
+	if(merge_skeleton):
+		attach_model = True
 
 	g_modelName = os.path.splitext(os.path.basename(filepath))[0]
 
@@ -584,22 +653,11 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 		ob.parent_type = 'BONE'
 		ob.location = (0, -1, 0)
 
-	#temp fix for automatically attaching weapons to viewmodels
-	"""try:
-		ob.pose.bones['j_gun'].matrix
-	except:
-		do="nothing"
-	else:
-		if arm_is_active:
-			tvec =  -ob.pose.bones['j_gun'].matrix.translation
-		
-			ob.matrix_local = tag_weapon_mat
-			mesh_ob.matrix_local = tag_weapon_mat
-			parent_set(ob, arm_ob, 'tag_weapon')
-			parent_set(mesh_ob, arm_ob, 'tag_weapon')
-			ob.matrix_local.translation = tvec
-			mesh_ob.matrix_local.translation = tvec"""
+	bpy.context.scene.update()
 
+	if(merge_skeleton):
+		join_armatures(ob_old,ob,mesh_ob)
+		bpy.ops.object.mode_set(mode='POSE')
 	
 	file.close()
 
