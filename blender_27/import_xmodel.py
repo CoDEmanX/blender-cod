@@ -162,8 +162,8 @@ def join_armatures(ob1, ob2, ob2_model):
 			
 	for bone in ebs:
 		if(bone.name.endswith(".001")):
-			#bpy.ops.object.select_all(action='TOGGLE')  
-			#bpy.ops.object.select_all(action='DESELECT')
+			bpy.ops.armature.select_all(action='TOGGLE')  
+			bpy.ops.armature.select_all(action='DESELECT')
 		
 			bone.select = True;
 			print("Deleting " + bone.name)
