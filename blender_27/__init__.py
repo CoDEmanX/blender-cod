@@ -142,7 +142,9 @@ class ImportXModel(bpy.types.Operator, ImportHelper):
 		col = box.column(align=True)
 		col.prop(self, "use_parents")
 		col.prop(self, "attach_model")
-		col.prop(self, "merge_skeleton")
+
+		if self.attach_model == True:
+			col.prop(self, "merge_skeleton")
 
 		#sub = box.column()
 		#sub.enabled = self.use_parents
