@@ -34,6 +34,15 @@ import os
 
 #def load(self, context, **keywords):filepath=""
 
+def RestMatrix(bone):
+	cmat = bone.matrix.copy()
+	bone.matrix_basis = Matrix()
+	bpy.context.scene.update()
+	rmat = bone.matrix.copy()
+	bpy.context.scene.update()
+	bone.matrix = cmat
+	return rmat
+
 def movebone(bone, matrix): #moves a bone independent of its children
 		pmat = bone.matrix.copy()
 		dmat = matrix * pmat.inverted()
@@ -159,6 +168,7 @@ def load_anim(self, context, filepath=""):
 												cbone = ob.pose.bones.data.bones[bone_name_i]
 												cbone.keyframe_insert(data_path = "location",index = -1,frame = currentframe)
 												cbone.keyframe_insert("rotation_quaternion",index = -1,frame = currentframe)
+												#currenFrame * (sceneframerate/animframerate)
 						state = 7
 				
 				elif line_split[0] == "PART":#state == 7 and line_split[0] == "PART":
@@ -170,8 +180,37 @@ def load_anim(self, context, filepath=""):
 
 						state = 8
 		
-				elif state == 8 and line_split[0] == "OFFSET":
+				elif state == 8 and line_split[0] == "OFFSET":						
+						"""offset = Vector((float(line_split[1]),float(line_split[2]),float(line_split[3])))
+
+						try:
+								ob.pose.bones.data.bones[bone_name]
+						except:
+								do="nothing"
+								#print("Bone Not Found - ", bone_name)  more annoying than anything
+								#print("Bone Not Found - Ignoring Bone:", bone_name)
+								#do nothing
+						else:
+								cbone = ob.pose.bones.data.bones[bone_name]
+
+								if (is_view_anim == True and any("tag_torso" in bone.name for bone in cbone.parent_recursive)): #used for Viewmodels
+										#offset /= 2.54#removing this makes the bones seem relatively normal
+										try:
+												cbone.parent.matrix.translation
+										except:
+												cbone.matrix_basis.translation = offset
+										else:
+												cbone.matrix.translation = (cbone.parent.matrix*offset)
+
+								else:
+										cbone.matrix_basis.translation = offset
+
+								cbone.keyframe_insert(data_path = "location", index = -1, frame = currentframe)"""
 						offset = Vector((float(line_split[1]),float(line_split[2]),float(line_split[3])))
+						
+						is_single_pos = False;
+						if(len(line_split) > 4):
+							is_single_pos = True;
 
 						try:
 								ob.pose.bones.data.bones[bone_name]
@@ -196,10 +235,15 @@ def load_anim(self, context, filepath=""):
 
 
 								else:
-										cbone.matrix_basis.translation = offset
+										if(is_single_pos == False):
+											cbone.matrix_basis.translation = offset
+										else:
+											#print("Single pos	",cbone.name,"\n")
+											cbone.matrix_basis.translation = Vector((0,0,0))
+											cbone.matrix.translation += offset							
 
-								cbone.keyframe_insert(data_path = "location",index = -1,frame = currentframe)
-								
+								cbone.keyframe_insert(data_path = "location",index = -1,frame = currentframe)						
+		
 						state = 9
 		
 				elif state == 9 and line_split[0] == "SCALE": #can probably be ignored - supposedly always == 1
@@ -258,10 +302,13 @@ def load_anim(self, context, filepath=""):
 						#print(nt_name)
 						state = 14
 				elif state == 14 and line_split[0] == "FRAME":
-						notetrack = bpy.context.scene.timeline_markers.new(nt_name)
+						#is pose markers instead of timeline markers
+						notetrack = ob.animation_data.action.pose_markers.new(nt_name) #bpy.context.scene.timeline_markers.new(nt_name)
 						notetrack.frame = int(line_split[1])
 		
 						state = 13
+
+
 
 		bpy.context.scene.update()
 		file.close()
@@ -398,7 +445,8 @@ def load_xanim(self, context, file):
 						state = 13
 				elif state == 13 and line_split[0] == "FRAME":
 						nt_name = line_split[2]
-						notetrack = bpy.context.scene.timeline_markers.new(nt_name)
+						#is pose markers instead of timeline markers
+						notetrack = ob.animation_data.action.pose_markers.new(nt_name) #bpy.context.scene.timeline_markers.new(nt_name)
 						notetrack.frame = int(line_split[1])#bpy.context.scene.timeline_markers[nt_name].frame = int(line_split[1])
 		
 						state = 13

@@ -53,40 +53,6 @@ def round_matrix_3x3(mat, precision=6):
 				(round(mat[1][0],precision), round(mat[1][1],precision), round(mat[1][2],precision)),
 				(round(mat[2][0],precision), round(mat[2][1],precision), round(mat[2][2],precision))))
 
-#http://gamedev.stackexchange.com/questions/32529/calculating-the-correct-roll-from-a-bone-transform-matrix
-def vec_roll_to_mat3(vec, roll):
-	target = mathutils.Vector((0,1,0))
-	nor = vec.normalized()
-	axis = target.cross(nor)
-	if axis.dot(axis) > 0.0000000001: # this seems to be the problem for some bones, no idea how to fix
-		axis.normalize()
-		theta = target.angle(nor)
-		bMatrix = mathutils.Matrix.Rotation(theta, 3, axis)
-	else:
-		updown = 1 if target.dot(nor) > 0 else -1
-		bMatrix = mathutils.Matrix.Scale(updown, 3)
-	rMatrix = mathutils.Matrix.Rotation(roll, 3, nor)
-	mat = rMatrix * bMatrix
-	return mat
-
-def mat3_to_vec_roll(mat):
-	vec = mat.col[1]
-	vecmat = vec_roll_to_mat3(mat.col[1], 0)
-	vecmatinv = vecmat.inverted()
-	rollmat = vecmatinv * mat
-	roll = math.atan2(rollmat[0][2], rollmat[2][2])
-	return vec, roll
-
-
-def getRoll(matrix):
-	mat = matrix.to_3x3()
-	quat = mat.to_quaternion()
-	if abs(quat.w) < 1e-4:
-		roll = pi
-	else:
-		roll = 2*atan(quat.y/quat.w)
-	return roll
-
 def dist(pt1, pt2): 
 
    locx = pt2[0] - pt1[0] 
@@ -185,8 +151,8 @@ def join_armatures(ob1, ob2, ob2_model):
 
 def load(self, context, filepath="", use_parents=True, use_connected_bones=False, use_local_location=False, attach_model=False, merge_skeleton=False):
 
-	if(merge_skeleton):
-		attach_model = True
+	if(!attach_model):
+		merge_skeleton = False
 
 	g_modelName = os.path.splitext(os.path.basename(filepath))[0]
 
@@ -497,46 +463,54 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 			bpy.ops.mesh.select_all(action='DESELECT')
 			bpy.ops.object.vertex_group_select()
 			bpy.ops.object.material_slot_add()
-			mesh_ob.material_slots[int(line_split[1])].material = bpy.data.materials.new(line_split[2][1:-1])
-			bpy.ops.object.material_slot_assign()
 
-			#opens normal map first so that the color map overrides it
-			failed = 0
+			mtl_name = line_split[2][1:-1]
+			mtl_index = bpy.data.materials.find(mtl_name)
 
-			model_path = os.path.dirname(filepath)
-
-			try:
-				cmap = line_split[4][7:-4]
-			except:
-				do="nothing" #no color map found
+			if mtl_index != -1:
+				mesh_ob.material_slots[int(line_split[1])].material = bpy.data.materials[mtl_index]
+				bpy.ops.object.material_slot_assign()
 			else:
-				if not openImage((model_path + "\\..\\_images\\"), cmap):
-					if not openImage((model_path + "\\_images\\"), cmap):
-						if not openImage((model_path + "\\images\\"), cmap):
-							print("Could not open: ", cmap)
-							failed = 1
+				mesh_ob.material_slots[int(line_split[1])].material = bpy.data.materials.new(line_split[2][1:-1])
+				bpy.ops.object.material_slot_assign()
 
-			if not failed:
-				mat_img_table.append(cmap)
+				#opens normal map first so that the color map overrides it
+				failed = 0
+
+				model_path = os.path.dirname(filepath)
+
+				try:
+					cmap = line_split[4][7:-4]
+				except:
+					do="nothing" #no color map found
+				else:
+					if not openImage((model_path + "\\..\\_images\\"), cmap):
+						if not openImage((model_path + "\\_images\\"), cmap):
+							if not openImage((model_path + "\\images\\"), cmap):
+								print("Could not open: ", cmap)
+								failed = 1
+
+				if not failed:
+					mat_img_table.append(cmap)
+					tex = mesh_ob.material_slots[int(line_split[1])].material.texture_slots.add()
+					tex.texture = bpy.data.textures.new(cmap+"_tex",'IMAGE')
+					tex.texture_coords = 'UV'
+					tex.uv_layer = 'UVMap'
+					tex.texture.image = bpy.data.images[cmap]
+
+				try:
+					nmap = line_split[5][7:-5]
+				except:
+					do="nothing" #no color map found
+				else:
+					if not openImage((model_path + "\\..\\_images\\"), nmap):
+						if not openImage((model_path + "\\_images\\"), nmap):
+							if not openImage((model_path + "\\images\\"), nmap):
+								print("Could not open: ", cmap)
+	
 				tex = mesh_ob.material_slots[int(line_split[1])].material.texture_slots.add()
-				tex.texture = bpy.data.textures.new(cmap+"_tex",'IMAGE')
 				tex.texture_coords = 'UV'
-				tex.uv_layer = 'UVMap'
-				tex.texture.image = bpy.data.images[cmap]
-
-			try:
-				nmap = line_split[5][7:-5]
-			except:
-				do="nothing" #no color map found
-			else:
-				if not openImage((model_path + "\\..\\_images\\"), nmap):
-					if not openImage((model_path + "\\_images\\"), nmap):
-						if not openImage((model_path + "\\images\\"), nmap):
-							print("Could not open: ", cmap)
-
-			tex = mesh_ob.material_slots[int(line_split[1])].material.texture_slots.add()
-			tex.texture_coords = 'UV'
-			tex.uv_layer = 'UVMap'	
+				tex.uv_layer = 'UVMap'	
 			
 							
 			
@@ -585,17 +559,20 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 
 	bones_i = -1
 	for (t0, t1, t2, t3) in zip(test_0, test_1, test_2, test_3):
-
 		t0 = t0.lower()
-		t3 = Matrix(t3).transposed()
+		t3 = Matrix(t3)
 
 		bone = amt.edit_bones.new(t0)
 		bone.use_local_location = False
 		
-		axis, roll = mat3_to_vec_roll(t3)
+		axis = t3[1]
+		roll = 0
 		bone.head = t2
 		bone.tail = t2 + axis
-		bone.roll = roll
+		bone.align_roll(t3[2])		
+		#bpy.context.scene.update()
+		
+		#bone.roll = 0#roll
 		
 		if t1 != -1:
 			parent = amt.edit_bones[t1]
@@ -603,11 +580,6 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 				bone.parent = parent
 
 		bones_i += 1 #probably not needed
-		
-		object_world_mat = Matrix(t3).to_4x4()
-		object_world_mat[0][3] = t2[0]
-		object_world_mat[1][3] = t2[1]
-		object_world_mat[2][3] = t2[2]
 
 	#Create Vertex Groups
 	for name, vgroup in vert_group_table.items():
@@ -626,20 +598,10 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 
 	ob = bpy.context.object  
 	
-	bpy.types.PoseBone.base_mat = bpy.props.FloatVectorProperty(name="Base Rotation Matrix (from File)", subtype="MATRIX", size=16)
-	bpy.types.PoseBone.rest_mat = bpy.props.FloatVectorProperty(name="Rest Rotation Matrix (from Blender)", subtype="MATRIX", size=16)  
-	
-	for (t0, t1, t2, t3) in zip(test_0, test_1, test_2, test_3):
-		ob.pose.bones.data.bones[t0.lower()].base_mat[0] = Matrix(t3).to_4x4()[0]
-		ob.pose.bones.data.bones[t0.lower()].base_mat[1] = Matrix(t3).to_4x4()[1]
-		ob.pose.bones.data.bones[t0.lower()].base_mat[2] = Matrix(t3).to_4x4()[2]
+	#bpy.types.PoseBone.base_mat = bpy.props.FloatVectorProperty(name="Base Rotation Matrix (from File)", subtype="MATRIX", size=16)
+	#bpy.types.PoseBone.rest_mat = bpy.props.FloatVectorProperty(name="Rest Rotation Matrix (from Blender)", subtype="MATRIX", size=16)  
 
-		ob.pose.bones.data.bones[t0.lower()].rest_mat[0] = ob.pose.bones.data.bones[t0.lower()].matrix[0]
-		ob.pose.bones.data.bones[t0.lower()].rest_mat[1] = ob.pose.bones.data.bones[t0.lower()].matrix[1]
-		ob.pose.bones.data.bones[t0.lower()].rest_mat[2] = ob.pose.bones.data.bones[t0.lower()].matrix[2]
-		ob.pose.bones.data.bones[t0.lower()].rest_mat[3] = ob.pose.bones.data.bones[t0.lower()].matrix[3]
-
-#test for parenting
+	#test for parenting
 	mesh_ob.parent = ob
 	mesh_ob.parent_bone = ob.pose.bones[0].name;
 	#mesh_ob.location = (0, -1, 0);
@@ -653,10 +615,27 @@ def load(self, context, filepath="", use_parents=True, use_connected_bones=False
 		ob.parent_type = 'BONE'
 		ob.location = (0, -1, 0)
 
+	#temp fix for automatically attaching weapons to viewmodels
+	"""try:
+		ob.pose.bones['j_gun'].matrix
+	except:
+		do="nothing"
+	else:
+		if arm_is_active:
+			tvec =  -ob.pose.bones['j_gun'].matrix.translation
+		
+			ob.matrix_local = tag_weapon_mat
+			mesh_ob.matrix_local = tag_weapon_mat
+			parent_set(ob, arm_ob, 'tag_weapon')
+			parent_set(mesh_ob, arm_ob, 'tag_weapon')
+			ob.matrix_local.translation = tvec
+			mesh_ob.matrix_local.translation = tvec"""
+
 	bpy.context.scene.update()
 
 	if(merge_skeleton):
 		join_armatures(ob_old,ob,mesh_ob)
+		#print("Wants to join " + " " + ob_old.name + " " + ob.name  + " " + mesh_ob.name);
 		bpy.ops.object.mode_set(mode='POSE')
 	
 	file.close()
