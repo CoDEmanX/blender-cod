@@ -548,7 +548,7 @@ def register():
 	if not preferences.use_submenu:
 		bpy.types.INFO_MT_file_import.append(menu_func_xmodel_import)
 		bpy.types.INFO_MT_file_import.append(menu_func_xanim_import)
-		bpy.types.INFO_MT_file_export.append(menu_func_xanim_import)
+		bpy.types.INFO_MT_file_export.append(menu_func_xanim_export)
 		bpy.types.INFO_MT_file_export.append(menu_func_xmodel_export)
 	else:
 		bpy.types.INFO_MT_file_import.append(menu_func_import_submenu)
