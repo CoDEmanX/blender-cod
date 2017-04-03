@@ -3,3 +3,6 @@
 *.orig
 *.diff
 *.patch
+test.py
+/.vscode
+/.old

@@ -18,553 +18,841 @@
 
 """
 Blender-CoD: Blender Add-On for Call of Duty Modding
-Version: Alpha 4
-
-Copyright (c) 2015 CoDEmanX, Flybynyt, SE2Dev -- blender-cod@online.de
-
+Copyright (c) 2017 CoDEmanX, Flybynyt, SE2Dev -- blender-cod@online.de
 https://github.com/CoDEmanX/blender-cod
 """
 
-bl_info = {
-	"name": "Blender-CoD",
-	"author": "CoDEmanX, Flybynyt, SE2Dev", 
-	"version": (0, 4, 0),
-	"blender": (2, 62, 3),
-	"location": "File > Import  |  File > Export",
-	"description": "Import-Export XModel_Export, XAnim_Export, and TAnim_Export",
-	"warning": "Alpha version, please report any bugs!",
-	"wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Import-Export/Call_of_Duty_IO",
-	"tracker_url": "http://projects.blender.org/tracker/index.php?func=detail&aid=30482",
-	"support": "TESTING",
-	"category": "Import-Export"
-}
-
 import bpy
 from bpy.types import Operator, AddonPreferences
-from bpy.props import BoolProperty, IntProperty, FloatProperty, StringProperty, EnumProperty, CollectionProperty
+from bpy.props import (BoolProperty, IntProperty, FloatProperty,
+                       StringProperty, EnumProperty, CollectionProperty)
+from bpy_extras.io_utils import ExportHelper, ImportHelper
+
+import time
+import os
+
+bl_info = {
+    "name": "Blender-CoD",
+    "author": "CoDEmanX, Flybynyt, SE2Dev",
+    "version": (0, 5, 0),
+    "blender": (2, 78, 0),
+    "location": "File > Import  |  File > Export",
+    "description": "Import-Export XModel_Export, XAnim_Export",
+    "warning": "Alpha version, please report any bugs!",
+    "wiki_url": "http://wiki.blender.org/index.php/Extensions:2.6/Py/Scripts/Import-Export/Call_of_Duty_IO",  # nopep8
+    "tracker_url": "http://projects.blender.org/tracker/index.php?func=detail&aid=30482",  # nopep8
+    "support": "TESTING",
+    "category": "Import-Export"
+}
+
 
 def update_submenu_mode(self, context):
-	try:
-		unregister()
-	except:
-		pass
-	register()
+    try:
+        unregister()
+    except:
+        pass
+    register()
+
 
 class BlenderCoD_Preferences(AddonPreferences):
-	bl_idname = __name__
+    bl_idname = __name__
 
-	use_submenu = BoolProperty(
-			name="Group Import/Export Buttons",
-			default=False,
-			update=update_submenu_mode,
-			)
+    use_submenu = BoolProperty(
+        name="Group Import/Export Buttons",
+        default=False,
+        update=update_submenu_mode,
+    )
 
-	def draw(self, context):
-		layout = self.layout
-		layout.prop(self, "use_submenu")
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "use_submenu")
 
-
-
-
-# To support reload properly, try to access a package var, if it's there, reload everything
+# To support reload properly, try to access a package var, if it's there,
+# reload everything
 if "bpy" in locals():
-	import imp
-	if "import_xmodel" in locals():
-		imp.reload(import_xmodel)
-	if "export_xmodel" in locals():
-		imp.reload(export_xmodel)
-	if "import_xanim" in locals():
-		imp.reload(import_xanim)
-	if "export_xanim" in locals():
-		imp.reload(export_xanim)
+    import imp
+    if "import_xmodel" in locals():
+        imp.reload(import_xmodel)
+    if "export_xmodel" in locals():
+        imp.reload(export_xmodel)
+    if "import_xanim" in locals():
+        imp.reload(import_xanim)
+    if "export_xanim" in locals():
+        imp.reload(export_xanim)
 else:
-	from . import import_xmodel, export_xmodel, import_xanim, export_xanim
+    from . import import_xmodel, export_xmodel, import_xanim, export_xanim
+    from pycod import xmodel, xanim, notetrack
 
-
-import bpy_extras.io_utils
-from bpy_extras.io_utils import ExportHelper, ImportHelper
-import time
 
 class ImportXModel(bpy.types.Operator, ImportHelper):
-	bl_idname = "import_scene.xmodel"
-	bl_label = "Import XMODEL_EXPORT"
-	bl_description = "Import a CoD XMODEL_EXPORT File"
-	bl_options = {'PRESET'}
+    bl_idname = "import_scene.xmodel"
+    bl_label = "Import XMODEL_EXPORT"
+    bl_description = "Import a CoD XMODEL_EXPORT File"
+    bl_options = {'PRESET'}
 
-	filename_ext = ".XMODEL_EXPORT"
-	filter_glob = StringProperty(default="*.XMODEL_EXPORT", options={'HIDDEN'})
+    filename_ext = ".XMODEL_EXPORT"
+    filter_glob = StringProperty(default="*.XMODEL_EXPORT", options={'HIDDEN'})
 
-	#use_meshes = BoolProperty(name="Meshes", description="Import meshes", default=True)
-	#use_armature = BoolProperty(name="Armature", description="Import Armature", default=True)
-	#use_bind_armature = BoolProperty(name="Bind Meshes to Armature", description="Parent imported meshes to armature", default=True)
+    ui_tab = EnumProperty(
+        items=(('MAIN', "Main", "Main basic settings"),
+               ('ARMATURE', "Armature", "Armature-related settings"),
+               ),
+        name="ui_tab",
+        description="Import options categories",
+        default='MAIN'
+    )
 
-	#use_split_objects = BoolProperty(name="Object", description="Import OBJ Objects into Blender Objects", default=True)
-	#use_split_groups = BoolProperty(name="Group", description="Import OBJ Groups into Blender Objects", default=True)
+    global_scale = FloatProperty(
+        name="Scale",
+        min=0.001, max=1000.0,
+        default=1.0,
+    )
 
-	#use_image_search = BoolProperty(name="Image Search", description="Search subdirs for any assosiated images (Warning, may be slow)", default=True)
+    use_single_mesh = BoolProperty(
+        name="Combine Meshes",
+        description="Combine all meshes in the file into a single object",  # nopep8
+        default=True
+    )
 
-	use_parents = BoolProperty( #SED
-		name="Use Parents",
-		description="Imports parent/child relationships and bone heirarchy",
-		default=True
-		)
+    use_dup_tris = BoolProperty(
+        name="Import Duplicate Tris",
+        description=("Import tris that reuse the same vertices as another tri "
+                     "(otherwise they are discarded)"),
+        default=True
+    )
 
-	attach_model = BoolProperty(
-		name="Attach Model",
-		description="Attach Head to Body, Gun to Hands etc.",
-		default=False
-		)
-		
-	merge_skeleton = BoolProperty(
-		name="Merge Skeletons",
-		description="Merge Imported Skeleton with Selected Skeleton",
-		default=False
-		)
+    use_custom_normals = BoolProperty(
+        name="Import Normals",
+        description=("Import custom normals, if available "
+                     "(otherwise Blender will recompute them)"),
+        default=True
+    )
 
-	def execute(self, context):
-		from . import import_xmodel
-		start_time = time.clock()
-		result = import_xmodel.load(self, context, **self.as_keywords(ignore=("filter_glob", "check_existing")))
+    use_vertex_colors = BoolProperty(
+        name="Import Vertex Colors",
+        default=True
+    )
 
-		if not result:
-			self.report({'INFO'}, "Import finished in %.4f sec." % (time.clock() - start_time))
-			return {'FINISHED'}
-		else:
-			self.report({'ERROR'}, result)
-			return {'CANCELLED'}
+    use_armature = BoolProperty(
+        name="Import Armature",
+        description="Import the skeleton",
+        default=True
+    )
 
-	
-	def draw(self, context):
-		layout = self.layout
+    use_parents = BoolProperty(
+        name="Import Relationships",
+        description="Import the parent / child bone relationships",
+        default=True
+    )
 
-		box = layout.box()
+    """
+    force_connect_children = BoolProperty(
+        name="Force Connect Children",
+        description=("Force connection of children bones to their parent, "
+                     "even if their computed head/tail "
+                     "positions do not match"),
+        default=False,
+    )
+    """  # nopep8
 
-		col = box.column(align=True)
-		col.prop(self, "use_parents")
-		col.prop(self, "attach_model")
+    attach_model = BoolProperty(
+        name="Attach Model",
+        description="Attach head to body, gun to hands, etc.",
+        default=False
+    )
 
-		if self.attach_model == True:
-			col.prop(self, "merge_skeleton")
+    merge_skeleton = BoolProperty(
+        name="Merge Skeletons",
+        description="Merge imported skeleton with the selected skeleton",
+        default=False
+    )
 
-		#sub = box.column()
-		#sub.enabled = self.use_parents
-		#sub.prop(self, "use_connected_bones")
+    use_image_search = BoolProperty(
+        name="Image Search",
+        description=("Search subdirs for any associated images "
+                     "(Warning, may be slow)"),
+        default=True
+    )
 
-	@classmethod
-	def poll(self, context):
-		return (context.scene is not None)
+    def execute(self, context):
+        from . import import_xmodel
+        start_time = time.clock()
+
+        keywords = self.as_keywords(ignore=("filter_glob",
+                                            "check_existing",
+                                            "ui_tab"))
+
+        result = import_xmodel.load(self, context, **keywords)
+
+        if not result:
+            self.report({'INFO'}, "Import finished in %.4f sec." %
+                        (time.clock() - start_time))
+            return {'FINISHED'}
+        else:
+            self.report({'ERROR'}, result)
+            return {'CANCELLED'}
+
+    @classmethod
+    def poll(self, context):
+        return (context.scene is not None)
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.prop(self, 'ui_tab', expand=True)
+        if self.ui_tab == 'MAIN':
+            # Orientation (Possibly)
+            # Axis Options (Possibly)
+
+            layout.prop(self, 'global_scale')
+
+            layout.prop(self, 'use_single_mesh')
+
+            layout.prop(self, 'use_custom_normals')
+            layout.prop(self, 'use_vertex_colors')
+            layout.prop(self, 'use_dup_tris')
+            layout.prop(self, 'use_image_search')
+        elif self.ui_tab == 'ARMATURE':
+            layout.prop(self, 'use_armature')
+            col = layout.column()
+            col.enabled = self.use_armature
+            col.prop(self, 'use_parents')
+
+            # Possibly support force_connect_children?
+            # sub = col.split()
+            # sub.enabled = self.use_parents
+            # sub.prop(self, 'force_connect_children')
+            col.prop(self, 'attach_model')
+            sub = col.split()
+            sub.enabled = self.attach_model
+            sub.prop(self, 'merge_skeleton')
 
 
 class ImportXAnim(bpy.types.Operator, ImportHelper):
-	bl_idname = "import_scene.xanim"
-	bl_label = "Import XANIM_EXPORT"
-	bl_description = "Import a CoD XANIM_EXPORT or TANIM_EXPORT File"
-	bl_options = {'PRESET'}
+    bl_idname = "import_scene.xanim"
+    bl_label = "Import XANIM_EXPORT"
+    bl_description = "Import a CoD XANIM_EXPORT or TANIM_EXPORT File"
+    bl_options = {'PRESET'}
 
-	filename_ext = ".XANIM_EXPORT"
-	filter_glob = StringProperty(default="*.XANIM_EXPORT;*.NT_EXPORT;*.TANIM_EXPORT", options={'HIDDEN'})
+    filename_ext = ".XANIM_EXPORT"
+    filter_glob = StringProperty(
+        default="*.XANIM_EXPORT;*.NT_EXPORT;*.TANIM_EXPORT",
+        options={'HIDDEN'}
+    )
 
-	files = CollectionProperty(type=bpy.types.PropertyGroup)
+    files = CollectionProperty(type=bpy.types.PropertyGroup)
 
-	def execute(self, context):
-		# print("Selected: " + context.active_object.name)
-		from . import import_xanim
-		return import_xanim.load(self, context, **self.as_keywords(ignore=("filter_glob", "files")))
+    global_scale = FloatProperty(
+        name="Scale",
+        min=0.001, max=1000.0,
+        default=1.0,
+    )
+
+    use_actions = BoolProperty(
+        name="Import as Action(s)",
+        description=("Import each animation as a separate action "
+                     "instead of appending to the current action"),
+        default=True
+    )
+
+    use_actions_skip_existing = BoolProperty(
+        name="Skip Existing Actions",
+        description="Skip animations that already have existing actions",
+        default=False
+    )
+
+    use_notetracks = BoolProperty(
+        name="Import Notetracks",
+        description=("Import notes to scene timeline markers "
+                     "(or action pose markers if 'Import as Action' is enabled)"),  # nopep8
+        default=True
+    )
+
+    use_notetrack_file = BoolProperty(
+        name="Import NT_EXPORT File",
+        description=("Automatically import the matching NT_EXPORT file "
+                     "(if present) for each XANIM_EXPORT"),
+        default=True
+    )
+
+    fps_scale_type = EnumProperty(
+        name="Scale FPS",
+        description="Automatically convert all imported animation(s) to the specified framerate",   # nopep8
+        items=(('DISABLED', "Disabled", "No framerate adjustments are applied"),   # nopep8
+               ('SCENE', "Scene", "Use the scene's framerate"),
+               ('CUSTOM', "Custom", "Use custom framerate")
+               ),
+        default='DISABLED',
+    )
+
+    fps_scale_target_fps = FloatProperty(
+        name="Target FPS",
+        description=("Custom framerate that all imported anims "
+                     "will be adjusted to use"),
+        default=30,
+        min=1,
+        max=120
+    )
+
+    update_scene_fps = BoolProperty(
+        name="Update Scene FPS",
+        description=("Set the scene framerate to match the framerate "
+                     "found in the first imported animation"),
+        default=False
+    )
+
+    anim_offset = FloatProperty(
+        name="Animation Offset",
+        description="Offset to apply to animation during import, in frames",
+        default=1.0,
+    )
+
+    def execute(self, context):
+        from . import import_xanim
+        start_time = time.clock()
+
+        result = import_xanim.load(
+            self, context, **self.as_keywords(ignore=("filter_glob", "files")))
+
+        if not result:
+            self.report({'INFO'}, "Import finished in %.4f sec." %
+                        (time.clock() - start_time))
+            return {'FINISHED'}
+        else:
+            self.report({'ERROR'}, result)
+            return {'CANCELLED'}
+
+    @classmethod
+    def poll(self, context):
+        return (context.scene is not None)
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.prop(self, 'global_scale')
+        layout.prop(self, 'use_actions')
+        sub = layout.split()
+        sub.enabled = self.use_actions
+        sub.prop(self, 'use_actions_skip_existing')
+        layout.prop(self, 'use_notetracks')
+        sub = layout.split()
+        sub.enabled = self.use_notetracks
+        sub.prop(self, 'use_notetrack_file')
+
+        sub = layout.box()
+        split = sub.split(0.55)
+        split.label("Scale FPS:")
+        split.prop(self, 'fps_scale_type', text="")
+        if self.fps_scale_type == 'DISABLED':
+            sub.prop(self, "update_scene_fps")
+        elif self.fps_scale_type == 'SCENE':
+            sub.label("Target Framerate: %.2f" % context.scene.render.fps)
+        elif self.fps_scale_type == 'CUSTOM':
+            sub.prop(self, 'fps_scale_target_fps')
+        layout.prop(self, 'anim_offset')
+
 
 class ExportXModel(bpy.types.Operator, ExportHelper):
-	bl_idname = "export_scene.xmodel"
-	bl_label = 'Export XMODEL_EXPORT'
-	bl_description = "Export a CoD XMODEL_EXPORT File"
-	bl_options = {'PRESET'}
+    bl_idname = "export_scene.xmodel"
+    bl_label = 'Export XMODEL_EXPORT'
+    bl_description = "Export a CoD XMODEL_EXPORT File"
+    bl_options = {'PRESET'}
 
-	filename_ext = ".XMODEL_EXPORT"
-	filter_glob = StringProperty(default="*.XMODEL_EXPORT", options={'HIDDEN'})
+    filename_ext = ".XMODEL_EXPORT"
+    filter_glob = StringProperty(default="*.XMODEL_EXPORT", options={'HIDDEN'})
 
-	# List of operator properties, the attributes will be assigned
-	# to the class instance from the operator settings before calling.
+    # List of operator properties, the attributes will be assigned
+    # to the class instance from the operator settings before calling.
 
-	use_version = EnumProperty(
-		name="Format Version",
-		description="XMODEL_EXPORT format version for export",
-		items=(('5', "Version 5", "vCoD, CoD:UO"),
-			   ('6', "Version 6", "CoD2, CoD4, CoD5, CoD7")),
-		default='6',
-		)
+    version = EnumProperty(
+        name="Version",
+        description="XMODEL_EXPORT format version for export",
+        items=(('5', "XMODEL_EXPORT v5", "vCoD, CoD:UO"),
+               ('6', "XMODEL_EXPORT v6", "CoD2, CoD4, CoD:WaW, CoD:BO"),
+               ('7', "XMODEL_EXPORT v7", "CoD:BO3")),
+        default='6'
+    )
 
-	use_selection = BoolProperty(
-		name="Selection only",
-		description="Export selected meshes only (object or weight paint mode)",
-		default=False
-		)
+    use_selection = BoolProperty(
+        name="Selection only",
+        description=("Export selected meshes only "
+                     "(object or weight paint mode)"),
+        default=False
+    )
 
-	use_vertex_colors = BoolProperty(
-		name="Vertex colors",
-		description="Export vertex colors (if disabled, white color will be used)",
-		default=True
-		)
+    global_scale = FloatProperty(
+        name="Scale",
+        min=0.001, max=1000.0,
+        default=1.0,
+    )
 
-	use_vertex_colors_alpha = BoolProperty(
-		name="As alpha",
-		description="Turn RGB vertex colors into grayscale (average value) and use it as alpha transparency. White is 1 (opaque), black 0 (invisible)",
-		default=False
-		)
+    use_vertex_colors = BoolProperty(
+        name="Vertex Colors",
+        description=("Export vertex colors "
+                     "(if disabled, white color will be used)"),
+        default=True
+    )
 
-	use_apply_modifiers = BoolProperty(
-		name="Apply Modifiers",
-		description="Apply all mesh modifiers except Armature (preview resolution)",
-		default=True
-		)
+    #  White is 1 (opaque), black 0 (invisible)
+    use_vertex_colors_alpha = BoolProperty(
+        name="Calculate Alpha",
+        description=("Automatically calculate alpha channel for vertex colors "
+                     "by averaging the RGB color values together "
+                     "(if disabled, 1.0 is used)"),
+        default=False
+    )
 
-	use_armature = BoolProperty(
-		name="Armature",
-		description="Export bones (if disabled, only a 'tag_origin' bone will be written)",
-		default=True
-		)
+    use_vertex_colors_alpha_mode = EnumProperty(
+        name="Vertex Alpha Source Layer",
+        description="The target vertex color layer to use for calculating the alpha values",  # nopep8
+        items=(('PRIMARY', "Active Layer",
+                "Use the active vertex color layer to calculate alpha"),
+               ('SECONDARY', "Secondary Layer",
+                ("Use the secondary (first inactive) vertex color layer to calculate alpha "  # nopep8
+                 "(If only one layer is present, the active layer is used)")),
+               ),
+        default='PRIMARY'
+    )
 
-	use_vertex_cleanup = BoolProperty(
-		name="Clean up vertices",
-		description="Try this if you have problems converting to xmodel. Skips vertices which aren't used by any face and updates references.",
-		default=False
-		)
+    use_vertex_cleanup = BoolProperty(
+        name="Clean Up Vertices",
+        description=("Try this if you have problems converting to xmodel. "
+                     "Skips vertices which aren't used by any face "
+                     "and updates references."),
+        default=False
+    )
 
-	use_armature_pose = BoolProperty(
-		name="Pose animation to models",
-		description="Export meshes with Armature modifier applied as a series of XMODEL_EXPORT files",
-		default=False
-		)
+    apply_modifiers = BoolProperty(
+        name="Apply Modifiers",
+        description="Apply all mesh modifiers (except Armature)",
+        default=False
+    )
 
-	use_frame_start = IntProperty(
-		name="Start",
-		description="First frame to export",
-		default=1,
-		min=0
-		)
+    modifier_quality = EnumProperty(
+        name="Modifier Quality",
+        description="The quality at which to apply mesh modifiers",
+        items=(('PREVIEW', "Preview", ""),
+               ('RENDER', "Render", ""),
+               ),
+        default='PREVIEW'
+    )
 
-	use_frame_end = IntProperty(
-		name="End",
-		description="Last frame to export",
-		default=250,
-		min=0
-		)
+    use_armature = BoolProperty(
+        name="Armature",
+        description=("Export bones "
+                     "(if disabled, only a 'tag_origin' bone will be written)"),  # nopep8
+        default=True
+    )
 
-	use_weight_min = BoolProperty(
-		name="Minimum bone weight",
-		description="Try this if you get 'too small weight' errors when converting",
-		default=False,
-		)
+    """
+    use_armature_pose = BoolProperty(
+        name="Pose animation to models",
+        description=("Export meshes with Armature modifier applied "
+                     "as a series of XMODEL_EXPORT files"),
+        default=False
+    )
 
-	use_weight_min_threshold = FloatProperty(
-		name="Threshold",
-		description="Smallest allowed weight (minimum value)",
-		default=0.010097,
-		min=0.0,
-		max=1.0,
-		precision=6
-		)
+    frame_start = IntProperty(
+        name="Start",
+        description="First frame to export",
+        default=1,
+        min=0
+    )
 
-	def execute(self, context):
-		from . import export_xmodel
-		start_time = time.clock()
-		result = export_xmodel.save(self, context, **self.as_keywords(ignore=("filter_glob", "check_existing")))
+    frame_end = IntProperty(
+        name="End",
+        description="Last frame to export",
+        default=250,
+        min=0
+    )
+    """
 
-		if not result:
-			self.report({'INFO'}, "Export finished in %.4f sec." % (time.clock() - start_time))
-			return {'FINISHED'}
-		else:
-			self.report({'ERROR'}, result)
-			return {'CANCELLED'}
+    use_weight_min = BoolProperty(
+        name="Minimum Bone Weight",
+        description=("Try this if you get 'too small weight' "
+                     "errors when converting"),
+        default=False,
+    )
 
-	# Extend ExportHelper invoke function to support dynamic default values
-	def invoke(self, context, event):
+    use_weight_min_threshold = FloatProperty(
+        name="Threshold",
+        description="Smallest allowed weight (minimum value)",
+        default=0.010097,
+        min=0.0,
+        max=1.0,
+        precision=6
+    )
 
-		#self.use_frame_start = context.scene.frame_start
-		self.use_frame_start = context.scene.frame_current
+    def execute(self, context):
+        from . import export_xmodel
+        start_time = time.clock()
 
-		#self.use_frame_end = context.scene.frame_end
-		self.use_frame_end = context.scene.frame_current
+        ignore = ("filter_glob", "check_existing")
+        result = export_xmodel.save(self, context,
+                                    **self.as_keywords(ignore=ignore))
 
-		return super().invoke(context, event)
+        if not result:
+            self.report({'INFO'}, "Export finished in %.4f sec." %
+                        (time.clock() - start_time))
+            return {'FINISHED'}
+        else:
+            self.report({'ERROR'}, result)
+            return {'CANCELLED'}
 
-	def draw(self, context):
-		layout = self.layout
+    @classmethod
+    def poll(self, context):
+        return (context.scene is not None)
 
-		row = layout.row(align=True)
-		row.prop(self, "use_version", expand=True)
+    # Extend ExportHelper invoke function to support dynamic default values
+    def invoke(self, context, event):
 
-		# Calculate number of selected mesh objects
-		if context.mode in ('OBJECT', 'PAINT_WEIGHT'):
-			meshes_selected = len([m for m in bpy.data.objects if m.type == 'MESH' and m.select])
-		else:
-			meshes_selected = 0
+        # self.use_frame_start = context.scene.frame_start
+        self.use_frame_start = context.scene.frame_current
 
-		col = layout.column(align=True)
-		col.prop(self, "use_selection", "Selection only (%i meshes)" % meshes_selected)
-		col.enabled = bool(meshes_selected)
+        # self.use_frame_end = context.scene.frame_end
+        self.use_frame_end = context.scene.frame_current
 
-		col = layout.column(align=True)
-		col.prop(self, "use_apply_modifiers")
+        return super().invoke(context, event)
 
-		col = layout.column(align=True)
-		col.enabled = not self.use_armature_pose
-		if self.use_armature and self.use_armature_pose:
-			col.prop(self, "use_armature", "Armature  (disabled)")
-		else:
-			col.prop(self, "use_armature")
+    def draw(self, context):
+        layout = self.layout
 
-		if self.use_version == '6':
+        layout.prop(self, 'version')
 
-			row = layout.row(align=True)
-			row.prop(self, "use_vertex_colors")
+        # Calculate number of selected mesh objects
+        if context.mode in ('OBJECT', 'PAINT_WEIGHT'):
+            meshes_selected = len(
+                [m for m in bpy.data.objects if m.type == 'MESH' and m.select])
+        else:
+            meshes_selected = 0
 
-			sub = row.split()
-			sub.active = self.use_vertex_colors
-			sub.prop(self, "use_vertex_colors_alpha")
+        layout.prop(self, 'use_selection',
+                    text="Selected Only (%d meshes)" % meshes_selected)
 
-		col = layout.column(align=True)
-		col.label("Advanced:")
+        layout.prop(self, 'global_scale')
 
-		col = layout.column(align=True)
-		col.prop(self, "use_vertex_cleanup")
+        # Axis?
 
-		box = layout.box()
+        sub = layout.split(0.5)
+        sub.prop(self, 'apply_modifiers')
+        sub = sub.row()
+        sub.enabled = self.apply_modifiers
+        sub.prop(self, 'modifier_quality', expand=True)
 
-		col = box.column(align=True)
-		col.prop(self, "use_armature_pose")
+        # layout.prop(self, 'custom_normals')
 
-		sub = box.column()
-		sub.active = self.use_armature_pose
-		sub.label(text="Frame range: (%i frames)" % (abs(self.use_frame_end - self.use_frame_start) + 1))
+        if int(self.version) >= 6:
+            row = layout.row()
+            row.prop(self, 'use_vertex_colors')
+            sub = row.split()
+            sub.enabled = self.use_vertex_colors
+            sub.prop(self, 'use_vertex_colors_alpha')
+            sub = layout.split()
+            sub.enabled = (self.use_vertex_colors and
+                           self.use_vertex_colors_alpha)
+            sub = sub.split(0.5)
+            sub.label("Vertex Alpha Layer")
+            sub.prop(self, 'use_vertex_colors_alpha_mode', text="")
 
-		row = sub.row(align=True)
-		row.prop(self, "use_frame_start")
-		row.prop(self, "use_frame_end")
+        layout.prop(self, 'use_vertex_cleanup')
 
-		box = layout.box()
+        layout.prop(self, 'use_armature')
+        box = layout.box()
+        box.enabled = self.use_armature
+        sub = box.column(align=True)
+        sub.prop(self, 'use_weight_min')
+        sub = box.split(align=True)
+        sub.active = self.use_weight_min
+        sub.prop(self, 'use_weight_min_threshold')
 
-		col = box.column(align=True)
-		col.prop(self, "use_weight_min")
-
-		sub = box.column()
-		sub.enabled = self.use_weight_min
-		sub.prop(self, "use_weight_min_threshold")
-
-	@classmethod
-	def poll(self, context):
-		return (context.scene is not None)
 
 class ExportXAnim(bpy.types.Operator, ExportHelper):
-	bl_idname = "export_scene.xanim"
-	bl_label = 'Export XANIM_EXPORT'
-	bl_description = "Export a CoD XANIM_EXPORT File"
-	bl_options = {'PRESET'}
+    bl_idname = "export_scene.xanim"
+    bl_label = 'Export XANIM_EXPORT'
+    bl_description = "Export a CoD XANIM_EXPORT File"
+    bl_options = {'PRESET'}
 
-	filename_ext = ".XANIM_EXPORT"
-	filter_glob = StringProperty(default="*.XANIM_EXPORT", options={'HIDDEN'})
+    filename_ext = ".XANIM_EXPORT"
+    filter_glob = StringProperty(default="*.XANIM_EXPORT", options={'HIDDEN'})
 
-	# List of operator properties, the attributes will be assigned
-	# to the class instance from the operator settings before calling.
+    use_selection = BoolProperty(
+        name="Selection Only",
+        description="Export selected bones only (pose mode)",
+        default=False
+    )
 
-	use_selection = BoolProperty(
-		name="Selection only",
-		description="Export selected bones only (pose mode)",
-		default=False
-		)
+    global_scale = FloatProperty(
+        name="Scale",
+        min=0.001, max=1000.0,
+        default=1.0,
+    )
 
-	use_framerate = IntProperty(
-		name="Framerate",
-		description="Set frames per second for export, 30 fps is commonly used.",
-		default=24,
-		min=1,
-		max=100
-		)
+    use_all_actions = BoolProperty(
+        name="Export All Actions",
+        description="Export *all* actions rather than just the active one",
+        default=False
+    )
 
-	use_frame_start = IntProperty(
-		name="Start",
-		description="First frame to export",
-		default=1,
-		min=0
-		)
+    filename_format = StringProperty(
+        name="Format",
+        description=("The format string for the filenames when exporting multiple actions\n"  # nopep8
+                     "%action, %s - The action name\n"
+                     "%number, %d - The action number\n"
+                     "%base,   %b - The base filename (at the top of the export window)\n"  # nopep8
+                     ""),
+        default="%action"
+    )
 
-	use_frame_end = IntProperty(
-		name="End",
-		description="Last frame to export",
-		default=250,
-		min=0
-		)
+    use_notetracks = BoolProperty(
+        name="Notetracks",
+        description="Export notetracks",
+        default=True
+    )
 
-	use_notetrack = BoolProperty(
-		name="Notetrack",
-		description="Export timeline markers as notetrack nodes",
-		default=True
-		)
+    use_notetrack_mode = EnumProperty(
+        name="Notetrack Mode",
+        description="Notetrack format to use. Always set 'CoD 7' for Black Ops, even if not using notetrack!",   # nopep8
+        items=(('SCENE', "Scene",
+                "Separate NT_EXPORT notetrack file for 'World at War'"),
+               ('ACTION', "Action",
+                "Separate NT_EXPORT notetrack file for 'Black Ops'")),
+        default='ACTION'
+    )
 
-	use_notetrack_format = EnumProperty(
-		name="Notetrack format",
-		description="Notetrack format to use. Always set 'CoD 7' for Black Ops, even if not using notetrack!",
-		items=(('5', "CoD 5", "Separate NT_EXPORT notetrack file for 'World at War'"),
-			   ('7', "CoD 7", "Separate NT_EXPORT notetrack file for 'Black Ops'"),
-			   ('1', "all other", "Inline notetrack data for all CoD versions except WaW and BO")),
-		default='1',
-		)
+    use_notetrack_format = EnumProperty(
+        name="Notetrack format",
+        description=("Notetrack format to use. "
+                     "Always set 'CoD 7' for Black Ops, "
+                     "even if not using notetrack!"),
+        items=(('5', "CoD 5",
+                "Separate NT_EXPORT notetrack file for 'World at War'"),
+               ('7', "CoD 7",
+                "Separate NT_EXPORT notetrack file for 'Black Ops'"),
+               ('1', "all other",
+                "Inline notetrack data for all CoD versions except WaW and BO")
+               ),
+        default='1'
+    )
 
-	def execute(self, context):
-		from . import export_xanim
-		start_time = time.clock()
-		result = export_xanim.save(self, context, **self.as_keywords(ignore=("filter_glob", "check_existing")))
+    use_notetrack_file = BoolProperty(
+        name="Write NT_EXPORT",
+        description=("Create an NT_EXPORT file for "
+                     "the exported XANIM_EXPORT file(s)"),
+        default=False
+    )
 
-		if not result:
-			self.report({'INFO'}, "Export finished in %.4f sec." % (time.clock() - start_time))
-			return {'FINISHED'}
-		else:
-			self.report({'ERROR'}, result)
-			return {'CANCELLED'}
+    use_frame_range_mode = EnumProperty(
+        name="Frame Range Mode",
+        description="Decides what to use for the frame range",
+        items=(('SCENE', "Scene", "Use the scene's frame range"),
+               ('ACTION', "Action", "Use the frame range from each action"),
+               ('CUSTOM', "Custom", "Use a user-defined frame range")),
+        default='ACTION'
+    )
 
-	# Extend ExportHelper invoke function to support dynamic default values
-	def invoke(self, context, event):
+    frame_start = IntProperty(
+        name="Start",
+        description="First frame to export",
+        min=0,
+        default=1
+    )
 
-		self.use_frame_start = context.scene.frame_start
-		self.use_frame_end = context.scene.frame_end
-		self.use_framerate = round(context.scene.render.fps / context.scene.render.fps_base)
+    frame_end = IntProperty(
+        name="End",
+        description="Last frame to export",
+        min=0,
+        default=250
+    )
 
-		return super().invoke(context, event)
+    use_custom_framerate = BoolProperty(
+        name="Custom Framerate",
+        description=("Force all written files to use a user defined "
+                     "custom framerate rather than the scene's framerate"),
+        default=False
+    )
 
-	def draw(self, context):
+    use_framerate = IntProperty(
+        name="Framerate",
+        description=("Set frames per second for export, "
+                     "30 fps is commonly used."),
+        default=30,
+        min=1,
+        max=1000
+    )
 
-		layout = self.layout
+    def execute(self, context):
+        from . import export_xanim
+        start_time = time.clock()
+        result = export_xanim.save(
+            self,
+            context,
+            **self.as_keywords(ignore=("filter_glob", "check_existing")))
 
-		bones_selected = 0
-		armature = None
+        if not result:
+            msg = "Export finished in %.4f sec." % (time.clock() - start_time)
+            self.report({'INFO'}, msg)
+            return {'FINISHED'}
+        else:
+            self.report({'ERROR'}, result)
+            return {'CANCELLED'}
 
-		# Take the first armature
-		for ob in bpy.data.objects:
-			if ob.type == 'ARMATURE' and len(ob.data.bones) > 0:
-				armature = ob.data
+    @classmethod
+    def poll(self, context):
+        return (context.scene is not None)
 
-				# Calculate number of selected bones if in pose-mode
-				if context.mode == 'POSE':
-					bones_selected = len([b for b in armature.bones if b.select])
+    '''
+    # Extend ExportHelper invoke function to support dynamic default values
+    def invoke(self, context, event):
 
-				# Prepare info string
-				armature_info = "%s (%i bones)" % (ob.name, len(armature.bones))
-				break
-		else:
-			armature_info = "Not found!"
+        self.use_frame_start = context.scene.frame_start
+        self.use_frame_end = context.scene.frame_end
+        # self.use_framerate = round(
+        #     context.scene.render.fps / context.scene.render.fps_base)
 
-		if armature:
-			icon = 'NONE'
-		else:
-			icon = 'ERROR'
+        return super().invoke(context, event)
+    '''
 
-		col = layout.column(align=True)
-		col.label("Armature: %s" % armature_info, icon)
+    def draw(self, context):
+        layout = self.layout
 
-		col = layout.column(align=True)
-		col.prop(self, "use_selection", "Selection only (%i bones)" % bones_selected)
-		col.enabled = bool(bones_selected)
+        layout.prop(self, 'use_selection')
+        layout.prop(self, 'global_scale')
 
-		layout.label(text="Frame range: (%i frames)" % (abs(self.use_frame_end - self.use_frame_start) + 1))
+        action_count = len(bpy.data.actions)
 
-		row = layout.row(align=True)
-		row.prop(self, "use_frame_start")
-		row.prop(self, "use_frame_end")
+        sub = layout.split()
+        sub.enabled = action_count > 0
+        sub.prop(self, 'use_all_actions',
+                 text='Export All Actions (%d actions)' % action_count)
 
-		col = layout.column(align=True)
-		col.prop(self, "use_framerate")
+        # Filename Options
+        if self.use_all_actions and action_count > 0:
+            sub = layout.column(align=True)
+            sub.label("Filename Options:")
+            box = sub.box()
+            sub = box.column(align=True)
 
-		# Calculate number of markers in export range
-		frame_min = min(self.use_frame_start, self.use_frame_end)
-		frame_max = max(self.use_frame_start, self.use_frame_end)
-		num_markers = len([m for m in context.scene.timeline_markers if frame_max >= m.frame >= frame_min])
+            sub.prop(self, 'filename_format')
 
-		col = layout.column(align=True)
-		col.prop(self, "use_notetrack", text="Notetrack (%i nodes)" % num_markers)
+            ex_num = action_count - 1
+            ex_action = bpy.data.actions[ex_num].name
+            ex_base = os.path.splitext(os.path.basename(self.filepath))[0]
 
-		col = layout.column(align=True)
-		col.prop(self, "use_notetrack_format", expand=True)
+            try:
+                icon = 'NONE'
+                from . import export_xanim
+                template = export_xanim.CustomTemplate(self.filename_format)
+                example = template.format(ex_action, ex_base, ex_num)
+            except Exception as err:
+                icon = 'ERROR'
+                example = str(err)
 
-	@classmethod
-	def poll(self, context):
-		return (context.scene is not None)
+            sub.label(example, icon=icon)
+
+        # Notetracks
+        col = layout.column(align=True)
+        sub = col.row()
+        sub = sub.split(0.45)
+        sub.prop(self, 'use_notetracks', text="Use Notetrack)
+        sub.row().prop(self, 'use_notetrack_mode', expand=True)
+        sub = col.column()
+        sub.enabled = self.use_notetrack_mode != 'NONE'
+
+        sub = sub.split()
+        sub.enabled = self.use_notetracks
+        sub.prop(self, 'use_notetrack_file')
+
+        # Framerate
+        layout.prop(self, 'use_custom_framerate')
+        sub = layout.split()
+        sub.enabled = self.use_custom_framerate
+        sub.prop(self, 'use_framerate')
+
+        # Frame Range
+        sub = layout.row()
+        sub.label("Frame Range:")
+        sub.prop(self, 'use_frame_range_mode', text="")
+
+        sub = layout.row(align=True)
+        sub.enabled = self.use_frame_range_mode == 'CUSTOM'
+        sub.prop(self, 'frame_start')
+        sub.prop(self, 'frame_end')
 
 
-def get_operator(idname):
-	op = bpy.ops
-	for attr in idname.split("."):
-		op = getattr(op, attr)
-	return op
+class Import_SubMenu(bpy.types.Menu):
+    bl_idname = "import_scene.cod"
+    bl_label = "Call of Duty"
 
-def bc_import_items_cb(self, context):
-	l = ((ImportXModel.bl_idname,'XModel (.XMODEL_EXPORT)',ImportXModel.bl_description), (ImportXAnim.bl_idname,'XAnim (.XANIM_EXPORT)',ImportXAnim.bl_description))
-	bc_import_items_cb.lookup = {id: name for id, name, desc in l}
-	return l
+    def draw(self, context):
+        menu_func_xmodel_import(self, context)
+        menu_func_xanim_import(self, context)
 
-def bc_export_items_cb(self, context):
-	l = ((ExportXModel.bl_idname,'XModel (.XMODEL_EXPORT)',ExportXModel.bl_description), (ExportXAnim.bl_idname,'XAnim (.XANIM_EXPORT)',ExportXAnim.bl_description))
-	bc_export_items_cb.lookup = {id: name for id, name, desc in l}
-	return l
 
-class BC_Import_Submenu(bpy.types.Operator):
-	bl_idname = "import_scene.cod"
-	bl_label = "Call of Duty"
+class Export_SubMenu(bpy.types.Menu):
+    bl_idname = "export_scene.cod"
+    bl_label = "Call of Duty"
 
-	iprop = bpy.props.EnumProperty(items=bc_import_items_cb)
+    def draw(self, context):
+        menu_func_xmodel_export(self, context)
+        menu_func_xanim_export(self, context)
 
-	def execute(self, context):
-		get_operator(self.iprop)('INVOKE_DEFAULT')
-		return {'FINISHED'}
-
-class BC_Export_Submenu(bpy.types.Operator):
-	bl_idname = "export_scene.cod"
-	bl_label = BC_Import_Submenu.bl_label
-
-	eprop = bpy.props.EnumProperty(items=bc_export_items_cb)
-
-	def execute(self, context):
-		get_operator(self.eprop)('INVOKE_DEFAULT')
-		return {'FINISHED'}
 
 def menu_func_xmodel_import(self, context):
-	self.layout.operator(ImportXModel.bl_idname, text="CoD XModel (.XMODEL_EXPORT)")
+    self.layout.operator(ImportXModel.bl_idname,
+                         text="CoD XModel (.XMODEL_EXPORT)")
+
 
 def menu_func_xanim_import(self, context):
-	self.layout.operator(ImportXAnim.bl_idname, text="CoD XAnim (.XANIM_EXPORT)")
+    self.layout.operator(ImportXAnim.bl_idname,
+                         text="CoD XAnim (.XANIM_EXPORT)")
+
 
 def menu_func_xmodel_export(self, context):
-	self.layout.operator(ExportXModel.bl_idname, text="CoD XModel (.XMODEL_EXPORT)")
+    self.layout.operator(ExportXModel.bl_idname,
+                         text="CoD XModel (.XMODEL_EXPORT)")
+
 
 def menu_func_xanim_export(self, context):
-	self.layout.operator(ExportXAnim.bl_idname, text="CoD XAnim (.XANIM_EXPORT)")
+    self.layout.operator(ExportXAnim.bl_idname,
+                         text="CoD XAnim (.XANIM_EXPORT)")
+
 
 def menu_func_import_submenu(self, context):
-	self.layout.operator_menu_enum(BC_Import_Submenu.bl_idname, "iprop", text=BC_Import_Submenu.bl_label)
+    self.layout.menu(Import_SubMenu.bl_idname, text="Call of Duty")
+
 
 def menu_func_export_submenu(self, context):
-	self.layout.operator_menu_enum(BC_Export_Submenu.bl_idname, "eprop", text=BC_Export_Submenu.bl_label)
+    self.layout.menu(Export_SubMenu.bl_idname, text="Call of Duty")
+
 
 def register():
-	bpy.utils.register_module(__name__)
-	preferences = bpy.context.user_preferences.addons[__name__].preferences
-	
-	if not preferences.use_submenu:
-		bpy.types.INFO_MT_file_import.append(menu_func_xmodel_import)
-		bpy.types.INFO_MT_file_import.append(menu_func_xanim_import)
-		bpy.types.INFO_MT_file_export.append(menu_func_xanim_export)
-		bpy.types.INFO_MT_file_export.append(menu_func_xmodel_export)
-	else:
-		bpy.types.INFO_MT_file_import.append(menu_func_import_submenu)
-		bpy.types.INFO_MT_file_export.append(menu_func_export_submenu)
- 
+    bpy.utils.register_module(__name__)
+    preferences = bpy.context.user_preferences.addons[__name__].preferences
+
+    # Each of these appended functions is executed every time the
+    # corresponding menu list is shown
+    if not preferences.use_submenu:
+        bpy.types.INFO_MT_file_import.append(menu_func_xmodel_import)
+        bpy.types.INFO_MT_file_import.append(menu_func_xanim_import)
+        bpy.types.INFO_MT_file_export.append(menu_func_xanim_export)
+        bpy.types.INFO_MT_file_export.append(menu_func_xmodel_export)
+    else:
+        bpy.types.INFO_MT_file_import.append(menu_func_import_submenu)
+        bpy.types.INFO_MT_file_export.append(menu_func_export_submenu)
+
 
 def unregister():
-	bpy.utils.unregister_module(__name__)
+    bpy.utils.unregister_module(__name__)
 
-	bpy.types.INFO_MT_file_import.remove(menu_func_xmodel_import)
-	bpy.types.INFO_MT_file_import.remove(menu_func_xanim_import)
-	bpy.types.INFO_MT_file_export.remove(menu_func_xmodel_export)
-	bpy.types.INFO_MT_file_export.remove(menu_func_xanim_export)
+    # You have to try to unregister both types of the menus here because
+    # the preference will have already been changed by the time this func runs
+    bpy.types.INFO_MT_file_import.remove(menu_func_xmodel_import)
+    bpy.types.INFO_MT_file_import.remove(menu_func_xanim_import)
+    bpy.types.INFO_MT_file_export.remove(menu_func_xmodel_export)
+    bpy.types.INFO_MT_file_export.remove(menu_func_xanim_export)
 
-	bpy.types.INFO_MT_file_import.remove(menu_func_import_submenu)
-	bpy.types.INFO_MT_file_export.remove(menu_func_export_submenu)
- 
+    bpy.types.INFO_MT_file_import.remove(menu_func_import_submenu)
+    bpy.types.INFO_MT_file_export.remove(menu_func_export_submenu)
+
 if __name__ == "__main__":
-	register()
+    register()

@@ -16,447 +16,274 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-"""
-Blender-CoD: Blender Add-On for Call of Duty modding
-Version: alpha 4
+# <pep8 compliant>
 
-Copyright (c) 2015 SE2Dev, CoDEmanX, Flybynyt -- blender-cod@online.de
-
-https://github.com/CoDEmanX/blender-cod
-
-"""
-
+import os
 import bpy
 from mathutils import *
-import math
-import time
-import os
-
-#def load(self, context, **keywords):filepath=""
-
-def RestMatrix(bone):
-	cmat = bone.matrix.copy()
-	bone.matrix_basis = Matrix()
-	bpy.context.scene.update()
-	rmat = bone.matrix.copy()
-	bpy.context.scene.update()
-	bone.matrix = cmat
-	return rmat
-
-def movebone(bone, matrix): #moves a bone independent of its children
-		pmat = bone.matrix.copy()
-		dmat = matrix * pmat.inverted()
-		cmats = {}
-		for child in bone.children:
-				cmats[child.name] =  child.matrix.copy()
-		bone.matrix = matrix
-		for child in bone.children:
-				child.matrix =   dmat.inverted() * cmats[child.name] 
-		return {'FINISHED'}
-
-def GetActionName(filepath):
-		str = os.path.splitext(filepath)[0]
-		return os.path.basename(str)
-
-def load(self, context,  filepath=""):
-		ob = bpy.context.object
-		path = os.path.dirname(filepath) + "\\"
-
-		try:
-			ob.animation_data.action
-		except:
-			ob.animation_data_create()
-
-		for f in self.files:
-			load_anim(self, context, path + f.name)
-		
-		return {'FINISHED'}
-
-def load_anim(self, context, filepath=""):
-		time_start = time.time()
-		scene = bpy.context.scene #bpy.data.scenes["Scene"].render.fps
-		ob = bpy.context.object
-		
-		amt = ob.data
-		
-		bpy.ops.object.mode_set(mode='POSE') 
-		
-		filetype = ""
-		version = 0
-		numbones = 0
-		bone_i = 0
-		bone_name_table = []
-		framerate = 0
-		numframes = 0
-		bone_name = ""
-		has_neg_tag_origin = 0
-		is_view_anim = 1 #set this to 0 later
-
-		state = 0
-
-		print("\nImporting %s" % filepath)
-
-		ob.animation_data.action = bpy.data.actions.new(GetActionName(filepath))
-		ob.animation_data.action.use_fake_user = True
-
-		try:
-				file = open(filepath, "r")
-		except IOError:
-				return "Could not open file for reading:\n%s" % filepath
-
-		for line in file:
-				line = line.strip()
-				line_split = line.split()
-
-				# Skip empty and comment lines
-				if not line or line[0] == "/":
-						continue
-
-				elif state == 0 and line_split[0] == "ANIMATION":
-						filetype = line_split[0]
-						state = 1
-
-				elif state == 1 and line_split[0] == "TOM_VERSION":
-						version = line_split[1]
-						state = 2
-				elif state == 1 and line_split[0] == "VERSION":
-						load_xanim(self, context, file)
-						return {"FINISHED"}
-
-				elif state == 2 and line_split[0] == "NUMPARTS":
-						numbones = int(line_split[1])
-						state = 3
-
-				elif state == 3 and line_split[0] == "PART":					
-						bone_name_table.append(line_split[2][1:-1])
-						if( int(line_split[1]) == -1 and line_split[2][1:-1] == "tag_origin"):
-								has_neg_tag_origin = 1
-						if bone_i >= numbones-1:
-								bone_i = 0
-								state = 4 # was 4
-						else:
-								#amt.bones[bone_i].use_local_location = False
-								bone_i += 1
-
-				elif state == 4 and line_split[0] == "FRAMERATE":
-						#framerate = int(line_split[1])
-						scene.render.fps = int(line_split[1])
-						state = 5
-
-				elif state == 5 and line_split[0] == "NUMFRAMES":
-						numframes = int(line_split[1])
-						#init bone table ex. bone[0] = bone 0   : bone[0].offset etc
-						state = 6
-
-				elif not(state == 14) and line_split[0] == "FRAME":
-						currentframe = int(line_split[1])
-
-						try:
-								firstframe
-						except:
-								firstframe = currentframe #might be able to remove with some tweaking
-								scene.frame_start = firstframe
-								scene.frame_end = scene.frame_start + numframes - 1
-
-								for bone_name_i in bone_name_table: #This for loop is for adding a keyframe for everybone at its default rotation and location
-																		#so that bones that are initially defined on the next frame still start correctly
-										try:
-												ob.pose.bones.data.bones[bone_name_i]
-										except:
-												print("Bone Not Found - Ignoring Bone:", bone_name) #at least it only does this one time here
-										else:
-												cbone = ob.pose.bones.data.bones[bone_name_i]
-												cbone.keyframe_insert(data_path = "location",index = -1,frame = currentframe)
-												cbone.keyframe_insert("rotation_quaternion",index = -1,frame = currentframe)
-												#currenFrame * (sceneframerate/animframerate)
-						state = 7
-				
-				elif line_split[0] == "PART":#state == 7 and line_split[0] == "PART":
-						bone_i = int(line_split[1])
-						if bone_i == -1:
-								bone_name = "tag_origin"
-						else:
-								bone_name = bone_name_table[bone_i+has_neg_tag_origin].lower()
-
-						state = 8
-		
-				elif state == 8 and line_split[0] == "OFFSET":						
-						"""offset = Vector((float(line_split[1]),float(line_split[2]),float(line_split[3])))
-
-						try:
-								ob.pose.bones.data.bones[bone_name]
-						except:
-								do="nothing"
-								#print("Bone Not Found - ", bone_name)  more annoying than anything
-								#print("Bone Not Found - Ignoring Bone:", bone_name)
-								#do nothing
-						else:
-								cbone = ob.pose.bones.data.bones[bone_name]
-
-								if (is_view_anim == True and any("tag_torso" in bone.name for bone in cbone.parent_recursive)): #used for Viewmodels
-										#offset /= 2.54#removing this makes the bones seem relatively normal
-										try:
-												cbone.parent.matrix.translation
-										except:
-												cbone.matrix_basis.translation = offset
-										else:
-												cbone.matrix.translation = (cbone.parent.matrix*offset)
-
-								else:
-										cbone.matrix_basis.translation = offset
-
-								cbone.keyframe_insert(data_path = "location", index = -1, frame = currentframe)"""
-						offset = Vector((float(line_split[1]),float(line_split[2]),float(line_split[3])))
-						
-						is_single_pos = False;
-						if(len(line_split) > 4):
-							is_single_pos = True;
-
-						try:
-								ob.pose.bones.data.bones[bone_name]
-						except:
-								do="nothing"
-								#print("Bone Not Found - ", bone_name)  more annoying than anything
-								#print("Bone Not Found - Ignoring Bone:", bone_name)
-								#do nothing
-						else:
-								cbone = ob.pose.bones.data.bones[bone_name]
-
-								if (is_view_anim == True and any("tag_torso" in bone.name for bone in cbone.parent_recursive)): #used for Viewmodels
-										
-										#offset /= 2.54#removing this makes the bones seem relatively normal
-									   
-										try:
-												cbone.parent.matrix.translation
-										except:
-												cbone.matrix_basis.translation = offset
-										else:
-												cbone.matrix.translation = (cbone.parent.matrix*offset)
+from io_scene_cod.pycod import xanim as XAnim
 
 
-								else:
-										if(is_single_pos == False):
-											cbone.matrix_basis.translation = offset
-										else:
-											#print("Single pos	",cbone.name,"\n")
-											cbone.matrix_basis.translation = Vector((0,0,0))
-											cbone.matrix.translation += offset							
+def get_mat_offs(bone):
+    # Based on the following: http://blender.stackexchange.com/a/44980
+    mat_offs = bone.matrix.to_4x4()
+    mat_offs.translation = bone.head
+    mat_offs.translation.y += bone.parent.length
 
-								cbone.keyframe_insert(data_path = "location",index = -1,frame = currentframe)						
-		
-						state = 9
-		
-				elif state == 9 and line_split[0] == "SCALE": #can probably be ignored - supposedly always == 1
-						scale = [float(line_split[1]),float(line_split[2]),float(line_split[3])]
-						state = 10
-		
-				elif (state == 9 or state == 10 or state == 8) and line_split[0] == "X": #scale doesnt always come after offset
-						m_col = []
-						m_col.append(Vector((float(line_split[1]), float(line_split[2]), float(line_split[3]))))
-						state = 11
-		
-				elif state == 11 and line_split[0] == "Y":
-						m_col.append(Vector((float(line_split[1]), float(line_split[2]), float(line_split[3]))))
-						state = 12
-		
-				elif state == 12 and line_split[0] == "Z":
-						m_col.append(Vector((float(line_split[1]), float(line_split[2]), float(line_split[3]))))
-						
-						rotMat = Matrix(m_col).to_4x4()
-
-						try:
-								ob.pose.bones.data.bones[bone_name]
-						except:
-								do="nothing"
-								#print("Bone Not Found - ", bone_name) # more annoying than anything
-								#print("Bone Not Found - Ignoring Bone:", bone_name)
-								#do nothing
-						else:
-								cbone = ob.pose.bones.data.bones[bone_name]
-
-								cbone.matrix_basis.identity() #reset bone to its base position
-								try:
-										cbone.parent.matrix
-								except:
-										cbone.matrix_basis.identity()
-										tmp_mat = ( rotMat.to_3x3()).to_4x4()
-								else:
-										tmp_mat = ( cbone.parent.matrix.to_3x3() * rotMat.to_3x3()).to_4x4()#cbone.matrix.to_3x3() *
-						
-								cbone.scale = Vector((1,1,1))
-								cbone.matrix = tmp_mat
-								
-								cbone.keyframe_insert("rotation_quaternion",index = -1,frame = currentframe)
-						
-						if bone_i+has_neg_tag_origin >= numbones-1:
-								bone_i = 0
-								state = 6
-						else:
-								state = 7
-				elif line_split[0] == "NUMTRACKS":
-						#ignore the number after NUMTRACKS as it isnt really needed
-						bpy.ops.object.mode_set(mode='OBJECT')
-						state = 13
-				elif state == 13 and line_split[0] == "NAME":
-						nt_name = line_split[1]
-						#print(nt_name)
-						state = 14
-				elif state == 14 and line_split[0] == "FRAME":
-						#is pose markers instead of timeline markers
-						notetrack = ob.animation_data.action.pose_markers.new(nt_name) #bpy.context.scene.timeline_markers.new(nt_name)
-						notetrack.frame = int(line_split[1])
-		
-						state = 13
+    return mat_offs
 
 
+def get_mat_rest(pose_bone, mat_pose_parent, mat_local_parent):
+    # Based on the following: http://blender.stackexchange.com/a/44980
+    bone = pose_bone.bone
 
-		bpy.context.scene.update()
-		file.close()
+    if pose_bone.parent:
+        mat_offs = get_mat_offs(bone)
 
-		bpy.ops.object.mode_set(mode='POSE')
+        # --------- rotscale
+        if (not bone.use_inherit_rotation and not bone.use_inherit_scale):
+            mat_rotscale = mat_local_parent * mat_offs
 
-		bpy.context.scene.frame_current = firstframe
+        elif not bone.use_inherit_rotation:
+            mat_size = Matrix.Identity(4)
+            for i in range(3):
+                mat_size[i][i] = mat_pose_parent.col[i].magnitude
+            mat_rotscale = mat_size * mat_local_parent * mat_offs
 
-		print("imported in: " + str(time.time()-time_start) + " seconds")
-		return {'FINISHED'}
+        elif not bone.use_inherit_scale:
+            mat_rotscale = mat_pose_parent.normalized() * mat_offs
+
+        else:
+            mat_rotscale = mat_pose_parent * mat_offs
+
+        # --------- location
+        if not bone.use_local_location:
+            mat_a = Matrix.Translation(mat_pose_parent * mat_offs.translation)
+
+            mat_b = mat_pose_parent.copy()
+            mat_b.translation = Vector()
+
+            mat_loc = mat_a * mat_b
+
+        elif (not bone.use_inherit_rotation or not bone.use_inherit_scale):
+            mat_loc = mat_pose_parent * mat_offs
+
+        else:
+            mat_loc = mat_rotscale.copy()
+
+    else:
+        mat_rotscale = bone.matrix_local
+        if not bone.use_local_location:
+            mat_loc = Matrix.Translation(bone.matrix_local.translation)
+        else:
+            mat_loc = mat_rotscale.copy()
+
+    return mat_rotscale, mat_loc
 
 
-def load_xanim(self, context, file):
-		time_start = time.time()
-		scene = bpy.context.scene #bpy.data.scenes["Scene"].render.fps
-		ob = bpy.context.object
-		amt = ob.data
-		
-		bpy.ops.object.mode_set(mode='POSE') 
-		
+def calc_basis(pose_bone, matrix, parent_mtx, parent_mtx_local):
+    # Based on the following: http://blender.stackexchange.com/a/44980
+    mat_rotscale, mat_loc = get_mat_rest(pose_bone,
+                                         parent_mtx,
+                                         parent_mtx_local)
+    basis = (matrix.to_3x3().inverted() * mat_rotscale.to_3x3()).transposed()
+    basis.resize_4x4()
+    basis.translation = mat_loc.inverted() * matrix.translation
+    return basis
 
-		filetype = ""
-		version = 0
-		numbones = 0
-		bone_i = 0
-		bone_name_table = []
-		framerate = 0
-		numframes = 0
-   
-		state = 2 #the first two parts were parsed by the previous function
 
-		for line in file:
-				line = line.strip()
-				line_split = line.split()
+def find_active_armature(context):
+    ob = bpy.context.active_object
+    if ob is None:
+        return None
 
-				# Skip empty and comment lines
-				if not line or line[0] == "/":
-						continue
+    if ob.type == 'ARMATURE':
+        return ob
 
-				elif state == 0 and line_split[0] == "ANIMATION":
-						filetype = line_split[0]
-						state = 1
+    return ob.find_armature()
 
-				elif state == 1 and line_split[0] == "VERSION":
-						version = line_split[1]
-						state = 2
 
-				elif state == 2 and line_split[0] == "NUMPARTS":
-						numbones = int(line_split[1])
-						state = 3
+def load(self, context, **keywords):
+    # Used to ensure that all anims are the same framerate when batch importing
+    scale_framerate_to_match_first_anim = False
 
-				elif state == 3 and line_split[0] == "PART":					
-						bone_name_table.append(line_split[2][1:-1])
-						if bone_i >= numbones-1:
-								bone_i = 0
-								state = 4 # was 4
-						else:
-								#amt.bones[bone_i].use_local_location = False
-								bone_i += 1
+    if not keywords['use_notetracks']:
+        keywords['use_notetrack_file'] = False
+    # elif fps_scale_type is 'CUSTOM':
+    #   we just use the argument fps_scale_target_fps
 
-				elif state == 4 and line_split[0] == "FRAMERATE":
-						#framerate = int(line_split[1])
-						scene.render.fps = int(line_split[1])
-						state = 5
+    armature = find_active_armature(context)
+    path = os.path.dirname(keywords['filepath'])
 
-				elif state == 5 and line_split[0] == "NUMFRAMES":
-						numframes = int(line_split[1])
-						#init bone table ex. bone[0] = bone 0   : bone[0].offset etc
-						state = 6
+    if armature is None:
+        return "No active armature found"
 
-				elif state == 6 and line_split[0] == "FRAME":
-						currentframe = int(line_split[1])
-						bpy.context.scene.frame_current = currentframe
-						bpy.context.scene.update()
-						
-						try:
-								firstframe
-						except:
-								firstframe = currentframe #might be able to remove with some tweaking
-								scene.frame_start = firstframe
-								scene.frame_end = scene.frame_start + numframes - 1
-						state = 7
-				
-				elif state == 7 and line_split[0] == "PART":
-						bone_i = int(line_split[1])
-						state = 8
-		
-				elif state == 8 and line_split[0] == "OFFSET":
-						offset = Vector((float(line_split[1]),float(line_split[2]),float(line_split[3])))
-						state = 9
-		
-				elif state == 9 and line_split[0] == "SCALE": #can probably be ignored - supposedly always == 1
-						scale = [float(line_split[1]),float(line_split[2]),float(line_split[3])]
-						state = 10
-		
-				elif (state == 9 or state == 10) and line_split[0] == "X": #scale doesnt always come after offset
-						m_col = []
-						m_col.append(Vector((float(line_split[1]), float(line_split[2]), float(line_split[3]))))
-						state = 11
-		
-				elif state == 11 and line_split[0] == "Y":
-						m_col.append(Vector((float(line_split[1]), float(line_split[2]), float(line_split[3]))))
-						state = 12
-		
-				elif state == 12 and line_split[0] == "Z":
-						m_col.append(Vector((float(line_split[1]), float(line_split[2]), float(line_split[3]))))
-						
-						rotMat = Matrix(m_col).transposed().to_4x4()
-										 
-						try:
-								ob.pose.bones[bone_name_table[bone_i].lower()]
-						except:
-								#print("Bone Not Found - ", bone_name_table[bone_i].lower())
-								#print("Bone Not Found - Ignoring Bone:", bone_name_table[bone_i].lower())
-								do="nothing"
-						else:
-								cbone = ob.pose.bones[bone_name_table[bone_i].lower()] #Saves alot of space typing
+    # Ensure that the object has animation data
+    if armature.animation_data is None:
+        armature.animation_data_create()
 
-								rotMat.translation = offset								
-								movebone(cbone,rotMat)
-								bpy.context.scene.update()
-								cbone.keyframe_insert("rotation_quaternion",index = -1,frame = currentframe)#was rotation_quaternion - COD most likely uses euler
-								cbone.keyframe_insert(data_path = "location",index = -1,frame = currentframe)
-								
+    for i, f in enumerate(self.files):
+        keywords['filepath'] = os.path.join(path, f.name)
+        anim = load_anim(self, context, armature, **keywords)
 
-						if bone_i >= numbones-1:
-								bone_i = 0
-								state = 6
-						else:
-								state = 7
-				elif line_split[0] == "NUMKEYS":
-						#ignore the number after NUMKEYS as it isnt really needed
-						bpy.ops.object.mode_set(mode='OBJECT')
-						state = 13
-				elif state == 13 and line_split[0] == "FRAME":
-						nt_name = line_split[2]
-						#is pose markers instead of timeline markers
-						notetrack = ob.animation_data.action.pose_markers.new(nt_name) #bpy.context.scene.timeline_markers.new(nt_name)
-						notetrack.frame = int(line_split[1])#bpy.context.scene.timeline_markers[nt_name].frame = int(line_split[1])
-		
-						state = 13
-		
-		file.close()
-		
-		bpy.context.scene.frame_current = firstframe
-		bpy.context.scene.update() #probably updates teh scene
+        if type(anim) is XAnim.Anim:
+            # All animations after the first one will have their framerate
+            #  refactored to match the first one that we loaded in the loop
+            if i == 0 and scale_framerate_to_match_first_anim:
+                keywords['fps_scale_type'] = 'CUSTOM'
+                keywords['fps_scale_target_fps'] = anim.framerate
+                keywords['update_scene_fps'] = False
 
-		bpy.ops.object.mode_set(mode='POSE')
-		
-		print("imported in: " + str(time.time()-time_start) + " seconds")
-		return {'FINISHED'}
+
+def load_anim(self, context, armature,
+              filepath,
+              global_scale=1.0,
+              use_actions=True,
+              use_actions_skip_existing=False,
+              use_notetracks=True,
+              use_notetrack_file=True,
+              fps_scale_type='DISABLED',
+              fps_scale_target_fps=30,
+              update_scene_fps=False,
+              anim_offset=0
+              ):
+    '''
+    Load a specific XAnim file
+    returns the XAnim() on success or an error message / None on failure
+    '''
+
+    # TEMP: Used to update the scene frame range based on the anim
+    update_scene_range = False
+
+    anim = XAnim.Anim()
+    anim.LoadFile(filepath, use_notetrack_file)
+
+    scene = context.scene
+    ob = armature
+
+    bpy.ops.object.mode_set(mode='POSE')
+
+    if use_actions:
+        actionName = os.path.basename(os.path.splitext(filepath)[0])
+
+        # Skip existing actions
+        if use_actions_skip_existing and actionName in bpy.data.actions:
+            # Should we print a notification here?
+            return
+
+        action = bpy.data.actions.new(actionName)
+        ob.animation_data.action = action
+        ob.animation_data.action.use_fake_user = True
+
+    if update_scene_fps:
+        scene.render.fps = anim.framerate
+
+    if fps_scale_type is 'SCENE':
+        fps_scale_target_fps = scene.render.fps
+
+    if fps_scale_type is 'DISABLED':
+        frame_scale = 1
+    else:
+        frame_scale = fps_scale_target_fps / anim.framerate
+
+    if update_scene_range:
+        frames = [frame.frame for frame in anim.frames]
+        scene.frame_start = min(frames) * frame_scale
+        scene.frame_end = max(frames) * frame_scale
+
+        # Adjust the frame shift so that if the first frame doesn't move when
+        #  the anim gets scaled, apply the anim_offset on top of that
+        frame_shift = anim_offset - scene.frame_start
+        scene.frame_start = scene.frame_start - frame_shift
+        scene.frame_end = scene.frame_end - frame_shift
+    else:
+        frame_shift = anim_offset
+
+    # Used to store bone metadata & matrix info for each animated bone
+    class MappedBone(object):
+        __slots__ = ('bone', 'part_index', 'matrix', 'matrix_local', 'parent')
+
+        def __init__(self, pose_bone, part_index):
+            self.bone = pose_bone
+            self.part_index = part_index
+            self.matrix = Matrix()
+            self.matrix_local = pose_bone.bone.matrix_local
+            self.parent = None
+
+        def map_parent(self, bone_map):
+            # Traverses the parents of the current bone recursively until -
+            # one that is present in the anim is found
+            # If none can be found, self.parent is set to None
+            bone_names = [mapped_bone.bone.name for mapped_bone in bone_map]
+
+            bone = self.bone
+            while bone is not None:
+                if bone.name in bone_names:
+                    parent_index = bone_names.index(bone.name)
+                    self.parent = bone_map[parent_index]
+                    return
+                bone = bone.parent
+            self.parent = None
+            return
+
+    # Map the PoseBones to their corresponding part numbers, parents, etc.
+    # The order of PoseBones in bone_map should match ob.pose.bones -
+    # which stores them in hierarchical order, meaning a bone's parent -
+    # will always be *earlier* in the list than the child
+    bone_map = []
+    part_names = [part.name.lower() for part in anim.parts]
+    for bone_index, bone in enumerate(ob.pose.bones):
+        if bone.name in part_names:
+            part_index = part_names.index(bone.name)
+            # Don't add bones that didn't have a matching part in the anim
+            if part_index is not None:
+                mapped_bone = MappedBone(bone, part_index)
+                mapped_bone.map_parent(bone_map)
+
+                bone_map.append(mapped_bone)
+            else:
+                # If the bone isn't used in the anim
+                #  simply reset it to its rest pose
+                bone.matrix_basis.identity()
+
+    # Load the keyframes
+    for frame in anim.frames:
+        f = frame.frame * frame_scale + frame_shift
+
+        for mapped_bone in bone_map:
+            # Because a bone's parent is always *before* the child in bone_map
+            #  it should always have an valid parent matrix
+            #  (unless there is no parent)
+            mapped_bone_parent = mapped_bone.parent
+            if mapped_bone_parent is not None:
+                parent_matrix = mapped_bone_parent.matrix
+                parent_local_matrix = mapped_bone_parent.matrix_local
+            else:
+                parent_matrix = Matrix()
+                parent_local_matrix = parent_matrix
+
+            part = frame.parts[mapped_bone.part_index]
+            mtx = Matrix(part.matrix).transposed().to_4x4()
+            mtx.translation = Vector(part.offset) * global_scale
+
+            # Store this bone's current matrix for its children to access
+            mapped_bone.matrix = mtx.copy()
+
+            bone = mapped_bone.bone
+            matrix_basis = calc_basis(bone,
+                                      mtx,
+                                      parent_matrix,
+                                      parent_local_matrix)
+            bone.matrix_basis = matrix_basis.copy()
+
+            bone.keyframe_insert("location", index=-1, frame=f)
+            bone.keyframe_insert("rotation_quaternion", index=-1, frame=f)
+
+    # Load the notes
+    if use_notetracks:
+        for anim_note in anim.notes:
+            note = action.pose_markers.new(anim_note.string)
+            note.frame = anim_note.frame * frame_scale - frame_shift
+
+    context.scene.update()
+    return anim
