@@ -32,14 +32,17 @@ def _skip_notice(ob_name, mesh_name, notice):
     print("\nSkipped object \"%s\" (mesh \"%s\"): %s" % vargs)
 
 
-def mesh_triangulate(mesh):
+def mesh_triangulate(mesh, vertex_cleanup):
     '''
-    Taken from export_obj.py
+    Based on the function in export_obj.py
+    Note: This modifies the passed mesh
     '''
 
     bm = bmesh.new()
     bm.from_mesh(mesh)
     bmesh.ops.triangulate(bm, faces=bm.faces)
+    if vertex_cleanup:
+        bmesh.ops.split(bm, use_only_faces=True)
     bm.to_mesh(mesh)
     bm.free()
 
@@ -406,7 +409,7 @@ def save_model(self, context, filepath, armature, objects,
                use_vertex_colors,
                use_vertex_colors_alpha,
                use_vertex_colors_alpha_mode,
-               use_vertex_cleanup,  # TODO Vertex cleanup
+               use_vertex_cleanup,
                use_armature,
                use_weight_min,
                use_weight_min_threshold,
@@ -444,7 +447,8 @@ def save_model(self, context, filepath, armature, objects,
             continue
 
         # Triangulate the mesh (Appears to keep split normals)
-        mesh_triangulate(mesh)
+        #  Also remove all loose verts (Vertex Cleanup)
+        mesh_triangulate(mesh, use_vertex_cleanup)
 
         # Should we have an arg for this? It seems to be automatic...
         use_split_normals = True
