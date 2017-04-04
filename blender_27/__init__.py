@@ -54,18 +54,76 @@ def update_submenu_mode(self, context):
     register()
 
 
+def update_scale_length(self, context):
+    unit_map = {
+        'CENTI':    0.01,
+        'MILLI':    0.001,
+        'METER':    1.0,
+        'KILO':     1000.0,
+        'INCH':     0.0254,
+        'FOOT':     0.3048,
+        'YARD':     0.9144,
+        'MILE':     1609.343994,
+    }
+
+    if self.unit_enum in unit_map:
+        self.scale_length = unit_map[self.unit_enum]
+
+
 class BlenderCoD_Preferences(AddonPreferences):
     bl_idname = __name__
 
     use_submenu = BoolProperty(
         name="Group Import/Export Buttons",
         default=False,
-        update=update_submenu_mode,
+        update=update_submenu_mode
+    )
+
+    unit_enum = EnumProperty(
+        items=(('CENTI', "Centimeters", ""),
+               ('MILLI', "Millimeters", ""),
+               ('METER', "Meters", ""),
+               ('KILO', "Kilometers", ""),
+               ('INCH', "Inches", ""),
+               ('FOOT', "Feet", ""),
+               ('YARD', "Yards", ""),
+               ('MILE', "Miles", ""),
+               ('CUSTOM', "Custom", ""),
+               ),
+        name="Default Unit",
+        description="The default unit to interpret one Blender Unit as when "
+                    "no units are specified in the scene presets",
+        default='INCH',
+        update=update_scale_length
+    )
+
+    scale_length = FloatProperty(
+        name="Unit Scale",
+        description="Scale factor to use, follows the same conventions as "
+                    "Blender's unit scale in the scene properties\n"
+                    "(Is the conversion factor to convert one Blender unit to "
+                    "one meter)",
+        soft_min=0.001,
+        soft_max=100.0,
+        min=0.00001,
+        max=100000.0,
+        precision=6,
+        step=1,
+        default=1.0
     )
 
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, "use_submenu")
+        row = layout.row()
+        row.prop(self, "use_submenu")
+        # Scale Options
+        col = row.column(align=True)
+        col.label(text="Units:")
+        sub = col.split(align=True)
+        sub.prop(self, "unit_enum", text="")
+        sub = col.split(align=True)
+        sub.enabled = self.unit_enum == 'CUSTOM'
+        sub.prop(self, "scale_length")
 
 # To support reload properly, try to access a package var, if it's there,
 # reload everything
@@ -79,9 +137,12 @@ if "bpy" in locals():
         imp.reload(import_xanim)
     if "export_xanim" in locals():
         imp.reload(export_xanim)
+    if "shared" in locals():
+        imp.reload(shared)
 else:
     from . import import_xmodel, export_xmodel, import_xanim, export_xanim
-    from pycod import xmodel, xanim, notetrack
+    from . import shared
+    from pycod import xmodel, xanim
 
 
 class ImportXModel(bpy.types.Operator, ImportHelper):
@@ -106,6 +167,13 @@ class ImportXModel(bpy.types.Operator, ImportHelper):
         name="Scale",
         min=0.001, max=1000.0,
         default=1.0,
+    )
+
+    apply_unit_scale = BoolProperty(
+        name="Apply Unit",
+        description="Scale all data according to current Blender size,"
+                    " to match CoD units",
+        default=True,
     )
 
     use_single_mesh = BoolProperty(
@@ -204,7 +272,10 @@ class ImportXModel(bpy.types.Operator, ImportHelper):
             # Orientation (Possibly)
             # Axis Options (Possibly)
 
-            layout.prop(self, 'global_scale')
+            row = layout.row(align=True)
+            row.prop(self, "global_scale")
+            sub = row.row(align=True)
+            sub.prop(self, "apply_unit_scale", text="", icon='NDOF_TRANS')
 
             layout.prop(self, 'use_single_mesh')
 
@@ -246,6 +317,13 @@ class ImportXAnim(bpy.types.Operator, ImportHelper):
         name="Scale",
         min=0.001, max=1000.0,
         default=1.0,
+    )
+
+    apply_unit_scale = BoolProperty(
+        name="Apply Unit",
+        description="Scale all data according to current Blender size,"
+                    " to match CoD units",
+        default=True,
     )
 
     use_actions = BoolProperty(
@@ -311,8 +389,12 @@ class ImportXAnim(bpy.types.Operator, ImportHelper):
         from . import import_xanim
         start_time = time.clock()
 
+        ignored_properties = ("filter_glob", "files", "apply_unit_scale")
         result = import_xanim.load(
-            self, context, **self.as_keywords(ignore=("filter_glob", "files")))
+            self,
+            context,
+            self.apply_unit_scale,
+            **self.as_keywords(ignore=ignored_properties))
 
         if not result:
             self.report({'INFO'}, "Import finished in %.4f sec." %
@@ -329,7 +411,11 @@ class ImportXAnim(bpy.types.Operator, ImportHelper):
     def draw(self, context):
         layout = self.layout
 
-        layout.prop(self, 'global_scale')
+        row = layout.row(align=True)
+        row.prop(self, "global_scale")
+        sub = row.row(align=True)
+        sub.prop(self, "apply_unit_scale", text="", icon='NDOF_TRANS')
+
         layout.prop(self, 'use_actions')
         sub = layout.split()
         sub.enabled = self.use_actions
@@ -384,6 +470,13 @@ class ExportXModel(bpy.types.Operator, ExportHelper):
         name="Scale",
         min=0.001, max=1000.0,
         default=1.0,
+    )
+
+    apply_unit_scale = BoolProperty(
+        name="Apply Unit",
+        description="Scale all data according to current Blender size,"
+                    " to match CoD units",
+        default=True,
     )
 
     use_vertex_colors = BoolProperty(
@@ -529,7 +622,10 @@ class ExportXModel(bpy.types.Operator, ExportHelper):
         layout.prop(self, 'use_selection',
                     text="Selected Only (%d meshes)" % meshes_selected)
 
-        layout.prop(self, 'global_scale')
+        row = layout.row(align=True)
+        row.prop(self, "global_scale")
+        sub = row.row(align=True)
+        sub.prop(self, "apply_unit_scale", text="", icon='NDOF_TRANS')
 
         # Axis?
 
@@ -585,6 +681,13 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
         name="Scale",
         min=0.001, max=1000.0,
         default=1.0,
+    )
+
+    apply_unit_scale = BoolProperty(
+        name="Apply Unit",
+        description="Scale all data according to current Blender size,"
+                    " to match CoD units",
+        default=True,
     )
 
     use_all_actions = BoolProperty(
@@ -716,7 +819,11 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
         layout = self.layout
 
         layout.prop(self, 'use_selection')
-        layout.prop(self, 'global_scale')
+
+        row = layout.row(align=True)
+        row.prop(self, "global_scale")
+        sub = row.row(align=True)
+        sub.prop(self, "apply_unit_scale", text="", icon='NDOF_TRANS')
 
         action_count = len(bpy.data.actions)
 
@@ -753,7 +860,7 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
         col = layout.column(align=True)
         sub = col.row()
         sub = sub.split(0.45)
-        sub.prop(self, 'use_notetracks', text="Use Notetrack)
+        sub.prop(self, 'use_notetracks', text="Use Notetrack")
         sub.row().prop(self, 'use_notetrack_mode', expand=True)
         sub = col.column()
         sub.enabled = self.use_notetrack_mode != 'NONE'
@@ -839,6 +946,10 @@ def register():
     else:
         bpy.types.INFO_MT_file_import.append(menu_func_import_submenu)
         bpy.types.INFO_MT_file_export.append(menu_func_export_submenu)
+
+    # Set the global 'plugin_preferences' variable for each module
+    from . import shared as shared
+    shared.plugin_preferences = preferences
 
 
 def unregister():

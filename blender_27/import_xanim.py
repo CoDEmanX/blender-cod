@@ -22,6 +22,7 @@ import os
 import bpy
 from mathutils import *
 from io_scene_cod.pycod import xanim as XAnim
+from . import shared as shared
 
 
 def get_mat_offs(bone):
@@ -103,7 +104,7 @@ def find_active_armature(context):
     return ob.find_armature()
 
 
-def load(self, context, **keywords):
+def load(self, context, apply_unit_scale=False, **keywords):
     # Used to ensure that all anims are the same framerate when batch importing
     scale_framerate_to_match_first_anim = False
 
@@ -111,6 +112,10 @@ def load(self, context, **keywords):
         keywords['use_notetrack_file'] = False
     # elif fps_scale_type is 'CUSTOM':
     #   we just use the argument fps_scale_target_fps
+
+    # Apply unit conversion factor to the scale
+    if apply_unit_scale:
+        global_scale *= shared.calculate_unit_scale_factor(context.scene)
 
     armature = find_active_armature(context)
     path = os.path.dirname(keywords['filepath'])

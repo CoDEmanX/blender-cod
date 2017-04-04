@@ -24,6 +24,7 @@ import os
 from itertools import repeat
 
 from io_scene_cod.pycod import xmodel as XModel
+from . import shared as shared
 
 
 def _skip_notice(ob_name, mesh_name, notice):
@@ -281,6 +282,7 @@ def save(self, context, filepath,
          version='6',
          use_selection=False,
          global_scale=1.0,
+         apply_unit_scale=False,
          apply_modifiers=True,
          modifier_quality='PREVIEW',
          use_vertex_colors=True,
@@ -296,6 +298,10 @@ def save(self, context, filepath,
     use_armature_pose = False
     use_frame_start = 0
     use_frame_end = 1
+
+    # Apply unit conversion factor to the scale
+    if apply_unit_scale:
+        global_scale /= shared.calculate_unit_scale_factor(context.scene)
 
     # There's no context object right after object deletion, need to set one
     if context.object:

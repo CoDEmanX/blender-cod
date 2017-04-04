@@ -27,8 +27,7 @@ from math import *
 from bpy_extras.image_utils import load_image
 
 from io_scene_cod.pycod import xmodel as XModel
-
-# 1 xmodel unit = 0.0254 blender units
+from . import shared as shared
 
 
 def get_armature_for_object(ob):
@@ -119,6 +118,7 @@ def join_armatures(skel1_ob, skel2_ob, skel2_mesh_obs):
 def load(self, context,
          filepath,
          global_scale=1.0,
+         apply_unit_scale=False,
          use_single_mesh=True,
          use_dup_tris=True,
          use_custom_normals=True,
@@ -129,14 +129,10 @@ def load(self, context,
          merge_skeleton=False,
          use_image_search=True):
 
-    # TODO: Scaling conversion tests
-    # Determine the scale for the model in order for it to be
-    #  correct in thecurrent scene
-    # 1 Blender Unit == 1 Meter (assumed)
-    # 1 *_EXPORT Unit == 1 Inch
-    # scale = 0.0254
-    # if scene.unit_settings.system != 'NONE':
-    # -   scale = scale / scene.unit_settings.scale_length
+    # Apply unit conversion factor to the scale
+    if apply_unit_scale:
+        global_scale *= shared.calculate_unit_scale_factor(context.scene)
+
     target_scale = global_scale
 
     if use_armature is False:

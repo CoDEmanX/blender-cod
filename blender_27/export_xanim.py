@@ -22,6 +22,7 @@ import os
 import bpy
 from string import Template
 from io_scene_cod.pycod import xanim as XAnim
+from . import shared as shared
 
 
 class CustomTemplate(Template):
@@ -126,6 +127,7 @@ def export_action(self, context, progress, action,
 def save(self, context, filepath="",
          use_selection=False,
          global_scale=1.0,
+         apply_unit_scale=False,
          use_all_actions=False,
          filename_format="%action",
          use_notetracks=True,
@@ -141,6 +143,10 @@ def save(self, context, filepath="",
 
     if not use_notetracks:
         use_notetrack_file = False
+
+    # Apply unit conversion factor to the scale
+    if apply_unit_scale:
+        global_scale /= shared.calculate_unit_scale_factor(context.scene)
 
     ob = bpy.context.object
     if ob.type != 'ARMATURE':
