@@ -128,6 +128,12 @@ def gather_exportable_objects(self, context,
             if test_armature_filter(ob):
                 obs.append(ob)
 
+    # Fallback to exporting only the selected object if we couldn't find any
+    if armature is not None:
+        if len(obs) == 0 and context.active_object is not None:
+            if ob.type == 'MESH':
+                obs = [context.active_object]
+
     return armature, obs
 
 
@@ -329,6 +335,9 @@ def save(self, context, filepath,
                                                   use_selection,
                                                   use_armature,
                                                   quiet=False)
+
+    if len(objects) == 0:
+        return "There are no objects to export"
 
     # Set up the argument keywords for save_model
     keywords = {
