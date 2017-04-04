@@ -518,7 +518,14 @@ def save_model(self, context, filepath, armature, objects,
             model_bone.matrix = matrix
             model.bones.append(model_bone)
     else:
-        bone_table = []
+        # If there are no bones, or there is no armature
+        #  create a dummy bone for tag_pos
+        dummy_bone_name = "tag_origin"
+        dummy_bone = XModel.Bone(dummy_bone_name, -1)
+        dummy_bone.offset = (0, 0, 0)
+        dummy_bone.matrix = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
+        model.bones.append(dummy_bone)
+        bone_table = [dummy_bone_name]
 
     # Generate bone weights for verts
     if not use_weight_min:
@@ -536,6 +543,8 @@ def save_model(self, context, filepath, armature, objects,
         model.materials.append(mtl)
 
     model.WriteFile(filepath, version=6)
+    for mesh in model.meshes:
+        print(mesh.name)
 
     # Remove meshes, which were made by to_mesh()
     for mesh in meshes:
