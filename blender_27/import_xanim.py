@@ -115,7 +115,8 @@ def load(self, context, apply_unit_scale=False, **keywords):
 
     # Apply unit conversion factor to the scale
     if apply_unit_scale:
-        global_scale *= shared.calculate_unit_scale_factor(context.scene)
+        unit_scale_factor = shared.calculate_unit_scale_factor(context.scene)
+        keywords['global_scale'] *= unit_scale_factor
 
     armature = find_active_armature(context)
     path = os.path.dirname(keywords['filepath'])
