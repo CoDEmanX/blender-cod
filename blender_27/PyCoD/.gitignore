@@ -1,0 +1,11 @@
+/__pycache__
+/.vscode
+/assets
+/test
+/tmp
+
+**/*.txt
+**/*.pyc
+
+tmp.py
+verify.py
