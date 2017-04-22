@@ -26,8 +26,8 @@ from mathutils import *
 from math import *
 from bpy_extras.image_utils import load_image
 
-from io_scene_cod.pycod import xmodel as XModel
 from . import shared as shared
+from .PyCoD import xmodel as XModel
 
 
 def get_armature_for_object(ob):
@@ -150,9 +150,17 @@ def load(self, context,
 
     scene = bpy.context.scene
 
+    # Load the model
     model_name = os.path.basename(filepath)
     model = XModel.Model(('.').join(model_name.split('.')[:-1]))
-    model.LoadFile(filepath, split_meshes=split_meshes)
+
+    ext = os.path.splitext(filepath)[-1].upper()
+    if ext == '.XMODEL_BIN':
+        LoadModelFile = model.LoadFile_Bin
+    else:
+        LoadModelFile = model.LoadFile_Raw
+
+    LoadModelFile(filepath, split_meshes=split_meshes)
 
     # Materials
     # List of the materials that Blender has loaded
@@ -192,8 +200,10 @@ def load(self, context,
                                                check_existing=True,
                                                place_holder=True)
                         material_images[image_name] = image
-                    else:
+                    elif image_name in bpy.data.images:
                         image = bpy.data.images[image_name]
+                    else:
+                        image = None
 
                     # Create the texture - We exclude the extension in the
                     #  texture name

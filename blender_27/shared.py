@@ -21,6 +21,18 @@
 plugin_preferences = None
 
 
+def get_metadata_string(filepath):
+    import bpy
+    msg = "// Exported using Blender v%s\n" % bpy.app.version_string
+    msg += "// Export filename: '%s'\n" % filepath.replace("\\", "/")
+    if bpy.data.filepath is None:
+        source_file = "<none>"
+    else:
+        source_file = bpy.data.filepath.replace('\\', '/')
+    msg += "// Source filename: '%s'\n" % source_file
+    return msg
+
+
 def calculate_unit_scale_factor(scene, apply_unit_scale=False):
     '''
     Calcualte the conversion factor to convert from

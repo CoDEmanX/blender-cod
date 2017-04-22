@@ -23,8 +23,8 @@ import bmesh
 import os
 from itertools import repeat
 
-from io_scene_cod.pycod import xmodel as XModel
 from . import shared as shared
+from .PyCoD import xmodel as XModel
 
 
 def _skip_notice(ob_name, mesh_name, notice):
@@ -288,6 +288,7 @@ class ExportMesh(object):
 
 
 def save(self, context, filepath,
+         target_format='XMODEL_EXPORT',
          version='6',
          use_selection=False,
          global_scale=1.0,
@@ -341,6 +342,7 @@ def save(self, context, filepath,
 
     # Set up the argument keywords for save_model
     keywords = {
+        "target_format": target_format,
         "version": version,
         "global_scale": global_scale,
         "apply_modifiers": apply_modifiers,
@@ -411,6 +413,7 @@ def save(self, context, filepath,
 
 
 def save_model(self, context, filepath, armature, objects,
+               target_format,
                version,
                global_scale,
                apply_modifiers,
@@ -542,9 +545,13 @@ def save_model(self, context, filepath, armature, objects,
         mtl = XModel.Material(material.name, "Lambert", imgs)
         model.materials.append(mtl)
 
-    model.WriteFile(filepath, version=6)
-    for mesh in model.meshes:
-        print(mesh.name)
+    header_msg = shared.get_metadata_string(filepath)
+    if target_format == 'XMODEL_BIN':
+        model.WriteFile_Bin(filepath, version=version,
+                            header_message=header_msg)
+    else:
+        model.WriteFile_Raw(filepath, version=version,
+                            header_message=header_msg)
 
     # Remove meshes, which were made by to_mesh()
     for mesh in meshes:

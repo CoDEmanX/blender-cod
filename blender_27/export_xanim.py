@@ -21,8 +21,9 @@
 import os
 import bpy
 from string import Template
-from io_scene_cod.pycod import xanim as XAnim
+
 from . import shared as shared
+from .PyCoD import xanim as XAnim
 
 
 class CustomTemplate(Template):
@@ -34,17 +35,6 @@ class CustomTemplate(Template):
                 's': action, 'action': action,
                 'b': base,   'base': base}
         return self.substitute(args)
-
-
-def get_metadata_string(filepath):
-    msg = "// Exported using Blender v%s\n" % bpy.app.version_string
-    msg += "// Export filename: '%s'\n" % filepath.replace("\\", "/")
-    if bpy.data.filepath is None:
-        source_file = "<none>"
-    else:
-        source_file = bpy.data.filepath.replace('\\', '/')
-    msg += "// Source filename: '%s'\n" % source_file
-    return msg
 
 
 def calc_frame_range(action):
@@ -62,6 +52,7 @@ def calc_frame_range(action):
 
 def export_action(self, context, progress, action,
                   filepath,
+                  target_format,
                   global_scale=1.0,
                   framerate=30,
                   frame_range=None,
@@ -118,13 +109,19 @@ def export_action(self, context, progress, action,
         anim.notes = notes
 
     # Write the XANIM_EXPORT file (and NT_EXPORT file if enabled)
-    anim.WriteFile(filepath,
-                   header_message=get_metadata_string(filepath),
-                   embed_notes=(not use_notetrack_file))
+    header_msg = shared.get_metadata_string(filepath)
+    if target_format == 'XANIM_BIN':
+        anim.WriteFile_Bin(filepath,
+                           header_message=header_msg)
+    else:
+        anim.WriteFile_Raw(filepath,
+                           header_message=header_msg,
+                           embed_notes=(not use_notetrack_file))
     return
 
 
 def save(self, context, filepath="",
+         target_format='XANIM_EXPORT',
          use_selection=False,
          global_scale=1.0,
          apply_unit_scale=False,
@@ -189,6 +186,7 @@ def save(self, context, filepath="",
             filename = filename_format.format(action.name, basename, index)
             filepath = path + filename + ".XANIM_EXPORT"
         export_action(self, context, progress, action, filepath,
+                      target_format,
                       global_scale,
                       framerate,
                       frame_range,

@@ -139,20 +139,26 @@ if "bpy" in locals():
         imp.reload(export_xanim)
     if "shared" in locals():
         imp.reload(shared)
+    if "PyCoD" in locals():
+        imp.reload(PyCoD)
+
 else:
     from . import import_xmodel, export_xmodel, import_xanim, export_xanim
     from . import shared
-    from pycod import xmodel, xanim
+    from . import PyCoD
 
 
 class ImportXModel(bpy.types.Operator, ImportHelper):
     bl_idname = "import_scene.xmodel"
-    bl_label = "Import XMODEL_EXPORT"
-    bl_description = "Import a CoD XMODEL_EXPORT File"
+    bl_label = "Import XModel"
+    bl_description = "Import a CoD XMODEL_EXPORT / XMODEL_BIN File"
     bl_options = {'PRESET'}
 
-    filename_ext = ".XMODEL_EXPORT"
-    filter_glob = StringProperty(default="*.XMODEL_EXPORT", options={'HIDDEN'})
+    filename_ext = ".XMODEL_EXPORT;.XMODEL_BIN"
+    filter_glob = StringProperty(
+        default="*.XMODEL_EXPORT;*.XMODEL_BIN",
+        options={'HIDDEN'}
+    )
 
     ui_tab = EnumProperty(
         items=(('MAIN', "Main", "Main basic settings"),
@@ -301,13 +307,13 @@ class ImportXModel(bpy.types.Operator, ImportHelper):
 
 class ImportXAnim(bpy.types.Operator, ImportHelper):
     bl_idname = "import_scene.xanim"
-    bl_label = "Import XANIM_EXPORT"
-    bl_description = "Import a CoD XANIM_EXPORT or TANIM_EXPORT File"
+    bl_label = "Import XAnim"
+    bl_description = "Import a CoD XANIM_EXPORT / XANIM_BIN File"
     bl_options = {'PRESET'}
 
-    filename_ext = ".XANIM_EXPORT"
+    filename_ext = ".XANIM_EXPORT;.NT_EXPORT;.XANIM_BIN"
     filter_glob = StringProperty(
-        default="*.XANIM_EXPORT;*.NT_EXPORT;*.TANIM_EXPORT",
+        default="*.XANIM_EXPORT;*.NT_EXPORT;*.XANIM_BIN",
         options={'HIDDEN'}
     )
 
@@ -440,22 +446,39 @@ class ImportXAnim(bpy.types.Operator, ImportHelper):
 
 class ExportXModel(bpy.types.Operator, ExportHelper):
     bl_idname = "export_scene.xmodel"
-    bl_label = 'Export XMODEL_EXPORT'
-    bl_description = "Export a CoD XMODEL_EXPORT File"
+    bl_label = 'Export XModel'
+    bl_description = "Export a CoD XMODEL_EXPORT / XMODEL_BIN File"
     bl_options = {'PRESET'}
 
     filename_ext = ".XMODEL_EXPORT"
-    filter_glob = StringProperty(default="*.XMODEL_EXPORT", options={'HIDDEN'})
+    filter_glob = StringProperty(
+        default="*.XMODEL_EXPORT;*.XMODEL_BIN", options={'HIDDEN'})
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
 
+    # Used to map target_format values to actual file extensions
+    format_ext_map = {
+        'XMODEL_EXPORT': '.XMODEL_EXPORT',
+        'XMODEL_BIN': '.XMODEL_BIN'
+    }
+
+    target_format = EnumProperty(
+        name="Format",
+        description="The target format to export to",
+        items=(('XMODEL_EXPORT', "XMODEL_EXPORT",
+                "Raw text format used from CoD1-CoD:BO"),
+               ('XMODEL_BIN', "XMODEL_BIN",
+                "Binary model format used by CoD:BO3")),
+        default='XMODEL_EXPORT'
+    )
+
     version = EnumProperty(
         name="Version",
         description="XMODEL_EXPORT format version for export",
-        items=(('5', "XMODEL_EXPORT v5", "vCoD, CoD:UO"),
-               ('6', "XMODEL_EXPORT v6", "CoD2, CoD4, CoD:WaW, CoD:BO"),
-               ('7', "XMODEL_EXPORT v7", "CoD:BO3")),
+        items=(('5', "Version 5", "vCoD, CoD:UO"),
+               ('6', "Version 6", "CoD2, CoD4, CoD:WaW, CoD:BO"),
+               ('7', "Version 7", "CoD:BO3")),
         default='6'
     )
 
@@ -596,6 +619,41 @@ class ExportXModel(bpy.types.Operator, ExportHelper):
     def poll(self, context):
         return (context.scene is not None)
 
+    def check(self, context):
+        '''
+        This is a modified version of the ExportHelper check() method
+        This one provides automatic checking for the file extension
+         based on what 'target_format' is (through 'format_ext_map')
+        '''
+        import os
+        from bpy_extras.io_utils import _check_axis_conversion
+        change_ext = False
+        change_axis = _check_axis_conversion(self)
+
+        check_extension = self.check_extension
+
+        if check_extension is not None:
+            filepath = self.filepath
+            if os.path.basename(filepath):
+                # If the current extension is one of the valid extensions
+                #  (as defined by this class), strip the extension, and ensure
+                #  that it has the correct one
+                # (needed when switching extensions)
+                base, ext = os.path.splitext(filepath)
+                if ext[1:] in self.format_ext_map:
+                    filepath = base
+                target_ext = self.format_ext_map[self.target_format]
+                filepath = bpy.path.ensure_ext(filepath,
+                                               target_ext
+                                               if check_extension
+                                               else "")
+
+                if filepath != self.filepath:
+                    self.filepath = filepath
+                    change_ext = True
+
+        return (change_ext or change_axis)
+
     # Extend ExportHelper invoke function to support dynamic default values
     def invoke(self, context, event):
 
@@ -610,6 +668,7 @@ class ExportXModel(bpy.types.Operator, ExportHelper):
     def draw(self, context):
         layout = self.layout
 
+        layout.prop(self, 'target_format', expand=True)
         layout.prop(self, 'version')
 
         # Calculate number of selected mesh objects
@@ -664,12 +723,29 @@ class ExportXModel(bpy.types.Operator, ExportHelper):
 
 class ExportXAnim(bpy.types.Operator, ExportHelper):
     bl_idname = "export_scene.xanim"
-    bl_label = 'Export XANIM_EXPORT'
-    bl_description = "Export a CoD XANIM_EXPORT File"
+    bl_label = 'Export XAnim'
+    bl_description = "Export a CoD XANIM_EXPORT / XANIM_BIN File"
     bl_options = {'PRESET'}
 
     filename_ext = ".XANIM_EXPORT"
-    filter_glob = StringProperty(default="*.XANIM_EXPORT", options={'HIDDEN'})
+    filter_glob = StringProperty(
+        default="*.XANIM_EXPORT;*.XANIM_BIN", options={'HIDDEN'})
+
+    # Used to map target_format values to actual file extensions
+    format_ext_map = {
+        'XANIM_EXPORT': '.XANIM_EXPORT',
+        'XANIM_BIN': '.XANIM_BIN'
+    }
+
+    target_format = EnumProperty(
+        name="Format",
+        description="The target format to export to",
+        items=(('XANIM_EXPORT', "XANIM_EXPORT",
+                "Raw text format used from CoD1-CoD:BO"),
+               ('XANIM_BIN', "XANIM_BIN",
+                "Binary animation format used by CoD:BO3")),
+        default='XANIM_EXPORT'
+    )
 
     use_selection = BoolProperty(
         name="Selection Only",
@@ -803,6 +879,41 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
     def poll(self, context):
         return (context.scene is not None)
 
+    def check(self, context):
+        '''
+        This is a modified version of the ExportHelper check() method
+        This one provides automatic checking for the file extension
+         based on what 'target_format' is (through 'format_ext_map')
+        '''
+        import os
+        from bpy_extras.io_utils import _check_axis_conversion
+        change_ext = False
+        change_axis = _check_axis_conversion(self)
+
+        check_extension = self.check_extension
+
+        if check_extension is not None:
+            filepath = self.filepath
+            if os.path.basename(filepath):
+                # If the current extension is one of the valid extensions
+                #  (as defined by this class), strip the extension, and ensure
+                #  that it has the correct one
+                # (needed when switching extensions)
+                base, ext = os.path.splitext(filepath)
+                if ext[1:] in self.format_ext_map:
+                    filepath = base
+                target_ext = self.format_ext_map[self.target_format]
+                filepath = bpy.path.ensure_ext(filepath,
+                                               target_ext
+                                               if check_extension
+                                               else "")
+
+                if filepath != self.filepath:
+                    self.filepath = filepath
+                    change_ext = True
+
+        return (change_ext or change_axis)
+
     '''
     # Extend ExportHelper invoke function to support dynamic default values
     def invoke(self, context, event):
@@ -817,7 +928,7 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
 
     def draw(self, context):
         layout = self.layout
-
+        layout.prop(self, 'target_format', expand=True)
         layout.prop(self, 'use_selection')
 
         row = layout.row(align=True)
@@ -906,22 +1017,22 @@ class Export_SubMenu(bpy.types.Menu):
 
 def menu_func_xmodel_import(self, context):
     self.layout.operator(ImportXModel.bl_idname,
-                         text="CoD XModel (.XMODEL_EXPORT)")
+                         text="CoD XModel (.XMODEL_EXPORT, .XMODEL_BIN)")
 
 
 def menu_func_xanim_import(self, context):
     self.layout.operator(ImportXAnim.bl_idname,
-                         text="CoD XAnim (.XANIM_EXPORT)")
+                         text="CoD XAnim (.XANIM_EXPORT, .XANIM_BIN)")
 
 
 def menu_func_xmodel_export(self, context):
     self.layout.operator(ExportXModel.bl_idname,
-                         text="CoD XModel (.XMODEL_EXPORT)")
+                         text="CoD XModel (.XMODEL_EXPORT, .XMODEL_BIN)")
 
 
 def menu_func_xanim_export(self, context):
     self.layout.operator(ExportXAnim.bl_idname,
-                         text="CoD XAnim (.XANIM_EXPORT)")
+                         text="CoD XAnim (.XANIM_EXPORT, .XANIM_BIN)")
 
 
 def menu_func_import_submenu(self, context):

@@ -21,8 +21,9 @@
 import os
 import bpy
 from mathutils import *
-from io_scene_cod.pycod import xanim as XAnim
+
 from . import shared as shared
+from .PyCoD import xanim as XAnim
 
 
 def get_mat_offs(bone):
@@ -161,8 +162,13 @@ def load_anim(self, context, armature,
     # TEMP: Used to update the scene frame range based on the anim
     update_scene_range = False
 
+    # Load the anim
     anim = XAnim.Anim()
-    anim.LoadFile(filepath, use_notetrack_file)
+    ext = os.path.splitext(filepath)[-1].upper()
+    if ext == '.XANIM_BIN':
+        anim.LoadFile_Bin(filepath)
+    else:
+        anim.LoadFile_Raw(filepath, use_notetrack_file)
 
     scene = context.scene
     ob = armature
