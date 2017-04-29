@@ -2,6 +2,8 @@ from itertools import repeat
 from time import strftime
 from math import sqrt
 
+import re
+
 from .xbin import XBinIO
 
 
@@ -35,20 +37,9 @@ def deserialize_image_string(ref_string):
         return {"color": "$none.tga"}
 
     out = {}
-    refs = ref_string.split()
-    for ref in refs:
-        if ':' not in ref:
-            continue
-        kv = ref.split(':')
-        c = len(kv)
-        if c > 2 or c < 1:
-            continue
-        elif c == 1:
-            key, value = (kv[0], "")
-        elif c == 2:
-            key, value = kv
-
+    for key, value in re.findall('\s*(\S+?)\s*:\s*(\S+)\s*', ref_string):
         out[key.lower()] = value.lstrip()
+
     if len(out) == 0:
         out = {"color": ref_string}
     return out
@@ -225,12 +216,15 @@ class Face(object):
                     state = 2
 
             elif state == 2 and line_split[0] == "NORMAL":
-                vert.normal = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]))
+                vert.normal = (float(line_split[1]),
+                               float(line_split[2]),
+                               float(line_split[3]))
                 state = 3
             elif state == 3 and line_split[0] == "COLOR":
-                vert.color = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]), float(line_split[4]))
+                vert.color = (float(line_split[1]),
+                              float(line_split[2]),
+                              float(line_split[3]),
+                              float(line_split[4]))
                 state = 4
             elif state == 4 and line_split[0] == "UV":
                 vert.uv = (float(line_split[2]), float(line_split[3]))
@@ -442,23 +436,27 @@ class Model(XBinIO, object):
                 state = 1
             elif state == 1 and line_split[0] == "OFFSET":
                 bone = self.bones[bone_index]
-                bone.offset = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]))
+                bone.offset = (float(line_split[1]),
+                               float(line_split[2]),
+                               float(line_split[3]))
                 state = 2
             # SCALE ... is ignored as its always 1
             elif state == 2 and line_split[0] == "X":
-                x = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]))
+                x = (float(line_split[1]),
+                     float(line_split[2]),
+                     float(line_split[3]))
                 bone.matrix[0] = x
                 state = 3
             elif state == 3 and line_split[0] == "Y":
-                y = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]))
+                y = (float(line_split[1]),
+                     float(line_split[2]),
+                     float(line_split[3]))
                 bone.matrix[1] = y
                 state = 4
             elif state == 4 and line_split[0] == "Z":
-                z = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]))
+                z = (float(line_split[1]),
+                     float(line_split[2]),
+                     float(line_split[3]))
                 bone.matrix[2] = z
                 state = -1
                 return lines_read
@@ -482,7 +480,7 @@ class Model(XBinIO, object):
             elif line_split[0] == "BONE":
                 index = int(line_split[1])
                 parent = int(line_split[2])
-                self.bones[index] = Bone(line_split[3][1:-1], parent)
+                self.bones[index] = Bone(line_split[3].strip('"'), parent)
                 bones_read += 1
                 if bones_read == bone_count:
                     break
@@ -508,7 +506,7 @@ class Model(XBinIO, object):
                 self.meshes = [None] * mesh_count
             elif line_split[0] == "OBJECT":
                 index = int(line_split[1])
-                self.meshes[index] = Mesh(line_split[2][1:-1])
+                self.meshes[index] = Mesh(line_split[2].strip('"'))
                 meshes_read += 1
                 if meshes_read == mesh_count:
                     return lines_read
@@ -575,9 +573,9 @@ class Model(XBinIO, object):
                 self.materials = [None] * material_count
             elif line_split[0] == "MATERIAL":
                 index = int(line_split[1])
-                name = line_split[2][1:-1]
-                material_type = line_split[3][1:-1]
-                images = deserialize_image_string(line_split[4].rstrip('"'))
+                name = line_split[2].strip('"')
+                material_type = line_split[3].strip('"')
+                images = deserialize_image_string(line_split[4].strip('"'))
                 material = Material(name, material_type, images)
                 self.materials[index] = Material(name, material_type, images)
                 material = self.materials[index]
@@ -587,30 +585,42 @@ class Model(XBinIO, object):
 
             # All of the properties below are only present in version 6
             elif line_split[0] == "COLOR":
-                material.color = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]), float(line_split[4]))
+                material.color = (float(line_split[1]),
+                                  float(line_split[2]),
+                                  float(line_split[3]),
+                                  float(line_split[4]))
             elif line_split[0] == "TRANSPARENCY":
-                material.transparency = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]), float(line_split[4]))
+                material.transparency = (float(line_split[1]),
+                                         float(line_split[2]),
+                                         float(line_split[3]),
+                                         float(line_split[4]))
             elif line_split[0] == "AMBIENTCOLOR":
-                material.color_ambient = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]), float(line_split[4]))
+                material.color_ambient = (float(line_split[1]),
+                                          float(line_split[2]),
+                                          float(line_split[3]),
+                                          float(line_split[4]))
             elif line_split[0] == "INCANDESCENCE":
-                material.incandescence = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]), float(line_split[4]))
+                material.incandescence = (float(line_split[1]),
+                                          float(line_split[2]),
+                                          float(line_split[3]),
+                                          float(line_split[4]))
             elif line_split[0] == "COEFFS":
                 material.coeffs = (float(line_split[1]), float(line_split[2]))
             elif line_split[0] == "GLOW":
                 material.glow = (float(line_split[1]), int(line_split[2]))
             elif line_split[0] == "REFRACTIVE":
-                material.refractive = (
-                    int(line_split[1]), float(line_split[2]))
+                material.refractive = (int(line_split[1]),
+                                       float(line_split[2]))
             elif line_split[0] == "SPECULARCOLOR":
-                material.color_specular = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]), float(line_split[4]))
+                material.color_specular = (float(line_split[1]),
+                                           float(line_split[2]),
+                                           float(line_split[3]),
+                                           float(line_split[4]))
             elif line_split[0] == "REFLECTIVECOLOR":
-                material.color_reflective = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]), float(line_split[4]))
+                material.color_reflective = (float(line_split[1]),
+                                             float(line_split[2]),
+                                             float(line_split[3]),
+                                             float(line_split[4]))
             elif line_split[0] == "REFLECTIVE":
                 material.reflective = (
                     int(line_split[1]), float(line_split[2]))
