@@ -836,8 +836,8 @@ class XBinIO(object):
         # Materials
         XBlock.WriteMetaInt16Block(file, 0xA1B2, len(model.materials))
         for material_index, material in enumerate(model.materials):
-            XBlock.WriteMaterialInfoBlock(
-                file, material_index, material, extended_features)
+            XBlock.WriteMaterialInfoBlock(file, material_index,
+                                          material, extended_features)
 
             XBlock.WriteColorBlock(file, material.color)
             XBlock.WriteMetaVec4Block(file, 0x6DAB, material.transparency)

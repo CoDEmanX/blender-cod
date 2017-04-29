@@ -47,7 +47,8 @@ class NoteTrack(object):
                 if note_count == 0:
                     break
             elif line_split[0] == "FRAME":
-                note = Note(FRAME_TYPE(line_split[1]), line_split[2][1:-1])
+                note = Note(FRAME_TYPE(line_split[1]),
+                            line_split[2].strip('"'))
                 self.notes.append(note)
         file.close()
 
@@ -160,24 +161,28 @@ class Frame(object):
                     raise ValueError(fmt % (part_index, part_count))
                 state = 1
             elif state == 1 and line_split[0] == "OFFSET":
-                offset = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]))
+                offset = (float(line_split[1]),
+                          float(line_split[2]),
+                          float(line_split[3]))
                 self.parts[part_index] = FramePart(offset)
                 part = self.parts[part_index]
                 state = 2
             elif state == 2 and line_split[0] == "X":
-                x = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]))
+                x = (float(line_split[1]),
+                     float(line_split[2]),
+                     float(line_split[3]))
                 part.matrix[0] = x
                 state = 3
             elif state == 3 and line_split[0] == "Y":
-                y = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]))
+                y = (float(line_split[1]),
+                     float(line_split[2]),
+                     float(line_split[3]))
                 part.matrix[1] = y
                 state = 4
             elif state == 4 and line_split[0] == "Z":
-                z = (float(line_split[1]), float(
-                    line_split[2]), float(line_split[3]))
+                z = (float(line_split[1]),
+                     float(line_split[2]),
+                     float(line_split[3]))
                 part.matrix[2] = z
                 state = -1
                 return lines_read
@@ -237,7 +242,7 @@ class Anim(XBinIO, object):
                 self.parts = [PartInfo(None)] * part_count
             elif line_split[0] == "PART":
                 index = int(line_split[1])
-                self.parts[index] = PartInfo(line_split[2][1:-1])
+                self.parts[index] = PartInfo(line_split[2].strip('"'))
                 parts_read += 1
                 if parts_read == part_count:
                     return lines_read
@@ -309,7 +314,7 @@ class Anim(XBinIO, object):
                     state = 1
             elif state == 1 and line_split[0] == "FRAME":
                 frame = FRAME_TYPE(line_split[1])
-                string = line_split[2][1:-1]
+                string = line_split[2].strip('"')
                 note = Note(frame, string)
                 self.notes.append(note)
 
