@@ -1,0 +1,8 @@
+*.pyc
+*.zip
+*.orig
+*.diff
+*.patch
+test.py
+/.vscode
+/.old

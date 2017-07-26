@@ -1,4 +1,4 @@
-# ![Blender-CoD logo](https://github.com/CoDEmanX/blender-cod/blob/master/blender-cod-logo.png) Blender-CoD #
+﻿# ![Blender-CoD logo](https://raw.githubusercontent.com/CoDEmanX/blender-cod/master/blender-cod-logo.png) Blender-CoD #
 *Blender Add-On for Call of Duty® modding*
 
 Import / export addon for Call of Duty's intermediate model and animation plaintext file formats - no Maya required.
