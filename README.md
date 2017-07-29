@@ -11,11 +11,8 @@ Model, animation and notetrack export to any CoD title:
   * XANIM_EXPORT v3 (all)
   * NT_EXPORT (CoD5, CoD7)
 
-Improved model and animation import by SE2Dev (unreleased):<br>
-https://github.com/CoDEmanX/blender-cod/tree/master/blender_27
+Use in combination with [Lemon / Lime](http://tom-crowley.co.uk/downloads/) or [Wraith](http://aviacreations.com/wraith/).<br>
 
-Use in combination with xAnimExtrator / Lime:<br>
-http://tom-crowley.co.uk/downloads/
 
 ***Note: Feature description not up-to-date!***
 
