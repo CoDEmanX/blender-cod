@@ -3,7 +3,10 @@
 
 Import / export addon for Call of Duty's intermediate model and animation plaintext file formats - no Maya required.
 
-**Download**: Checkout with Git or see [Releases](https://github.com/CoDEmanX/blender-cod/releases).
+**Download**:  Several download options are available. Choose one of the following:
++ [Official releases](https://github.com/CoDEmanX/blender-cod/releases)
++ [Experimental](https://github.com/CoDEmanX/blender-cod.git) (active development)
++ Checkout with Git
 
 Model, animation and notetrack export to any CoD title:
   * XMODEL_EXPORT v5 (vCoD, CoD:UO)
