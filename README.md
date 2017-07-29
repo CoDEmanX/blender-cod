@@ -67,12 +67,14 @@ You can basically import any supported 3d model into Blender (e.g. Blender files
   
 ## Requirements ##
 
-  * Blender 2.59 or later - [blender.org](http://www.blender.org/download/)
+  * Blender 2.78 or later - [blender.org](http://www.blender.org/download/)
 
 
 ## Installation ##
 
   1. Download the archive, but don't unzip it!
+      + [Release](https://github.com/CoDEmanX/blender-cod/releases)
+      + [Experimental](https://github.com/CoDEmanX/blender-cod/archive/master.zip)
   1. Start Blender
   1. Click menu _`File > User Preferences...`_
   1. Activate the _`Addons`_ section
