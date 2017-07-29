@@ -343,7 +343,7 @@ def save(self, context, filepath,
     # Set up the argument keywords for save_model
     keywords = {
         "target_format": target_format,
-        "version": version,
+        "version": int(version),
         "global_scale": global_scale,
         "apply_modifiers": apply_modifiers,
         "modifier_quality": modifier_quality,
