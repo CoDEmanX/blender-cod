@@ -282,6 +282,10 @@ class ExportMesh(object):
                 vert = XModel.FaceVertex(
                     loop.vertex_index, loop.normal, colors[i], uv)
                 face.indices[i] = vert
+            # Fix winding order (again)
+            tmp = face.indices[2]
+            face.indices[2] = face.indices[1]
+            face.indices[1] = tmp
             mesh.faces.append(face)
 
         return mesh
@@ -343,7 +347,7 @@ def save(self, context, filepath,
     # Set up the argument keywords for save_model
     keywords = {
         "target_format": target_format,
-        "version": int(version),
+        "version": version,
         "global_scale": global_scale,
         "apply_modifiers": apply_modifiers,
         "modifier_quality": modifier_quality,
