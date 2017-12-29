@@ -282,6 +282,10 @@ class ExportMesh(object):
                 vert = XModel.FaceVertex(
                     loop.vertex_index, loop.normal, colors[i], uv)
                 face.indices[i] = vert
+            # Fix winding order (again)
+            tmp = face.indices[2]
+            face.indices[2] = face.indices[1]
+            face.indices[1] = tmp
             mesh.faces.append(face)
 
         return mesh
