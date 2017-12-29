@@ -506,7 +506,9 @@ def save_model(self, context, filepath, armature, objects,
                 if bone.parent.name in bone_table:
                     bone_parent_index = bone_table.index(bone.parent.name)
                 else:
-                    print("WARNING")  # TODO:
+                    # TODO: Add some sort of useful warning for when we try
+                    #  to export a bone that isn't actually in the bone table
+                    print("WARNING")
                     bone_parent_index = 0
             else:
                 bone_parent_index = -1
