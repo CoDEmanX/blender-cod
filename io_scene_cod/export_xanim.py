@@ -171,9 +171,9 @@ def save(self, context, filepath="",
         framerate = use_framerate
 
     # Determine the frame range based on use_frame_range_mode
-    if use_frame_range_mode is 'SCENE':
+    if use_frame_range_mode == 'SCENE':
         frame_range = (context.scene.frame_start, context.scene.frame_end)
-    elif use_frame_range_mode is 'CUSTOM':
+    elif use_frame_range_mode == 'CUSTOM':
         frame_range = (frame_start, frame_end)
     else:
         frame_range = None
