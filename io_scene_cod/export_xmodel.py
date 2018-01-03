@@ -150,7 +150,11 @@ def material_gen_image_dict(material):
         if texture is None:
             continue
         if texture.type == 'IMAGE':
-            image = slot.texture.image
+            try:
+                image = slot.texture.image.name
+            except:
+                image = "<undefined>"
+
             if slot.use_map_color_diffuse:
                 out['color'] = image
             elif slot.use_map_normal:
