@@ -151,7 +151,11 @@ def material_gen_image_dict(material):
             continue
         if texture.type == 'IMAGE':
             try:
-                image = slot.texture.image.name
+                tex_img = slot.texture.image
+                if tex_img.source != 'FILE':
+                    image = tex_img.name
+                else:
+                    image = os.path.basename(tex_img.filepath)
             except:
                 image = "<undefined>"
 
