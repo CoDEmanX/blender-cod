@@ -1,3 +1,5 @@
+# <pep8 compliant>
+
 import struct
 import os
 from io import BytesIO
@@ -21,16 +23,68 @@ def print_lz4_support_info(force=False):
         __LZ4_DISPLAY_SUPPORT_INFO__ = False
 
 
+def validate_version(self, version):
+    '''
+    Common method for validating the given version.
+        Also syncs the given object's version value with the given version
+    Arguments:
+        self - the target XModel or XAnim object
+        version - the given version value
+    Returns the version on success, or None on failure
+    '''
+
+    if version is None:
+        # If the user didn't specify a version, we attempt to use
+        #  whichever version the object already has (if it has one)
+        version = self.version
+
+    if version is not None:
+        # If we used the object's previously defined version, or the passed
+        # version value was actually defined, we ensure the new val is an int
+        version = int(version)
+
+    # Ensure that the object's version matches the new version id
+    self.version = version
+
+    # Raise an error if we were unable to figure out a proper version to use
+    if version is None:
+        raise ValueError(
+            "Unable to choose a valid version for the output file")
+
+    return version
+
+
 def padded(size):
     return (size + 0x3) & 0xFFFFFFFFFFFFFC
 
 
-def __clamp_float_to_short__(value, range=(-32768, 32767)):
-    return max(min(int(value * range[1]), range[1]), range[0])
+def padding(size):
+    return 4 - size & 0x3
+
+
+def __clamp_float_to_short__(value, _range=(-32768, 32767)):
+    return max(min(int(value * _range[1]), _range[1]), _range[0])
 
 
 def __str2bytes__(string):
     return bytearray(str(string).encode('utf-8'))
+
+
+def __str_utf8__(string):
+    return str(string).encode('utf-8')
+
+
+# Conditionally define __str_packable__ depending on what the curent version
+#  of Python supports
+try:
+    struct.pack("s", "test")
+except struct.error:
+    # If struct.pack() requires a bytearray, we must convert to a byte array
+    #  to make the string packable
+    __str_packable__ = __str2bytes__
+else:
+    # Otherwise we just make sure the string is UTF8 encoded
+    __str_packable__ = __str_utf8__
 
 
 class XBlock(object):
@@ -44,13 +98,12 @@ class XBlock(object):
 
     @staticmethod
     def LoadString(file):
-        bytes = b''
-        for i in range(1024):
+        _bytes = b''
+        b = file.read(1)
+        while not b == b'\x00':
+            _bytes += b
             b = file.read(1)
-            if b == b'\x00':
-                break
-            bytes += b
-        return bytes.decode("utf-8")
+        return _bytes.decode("utf-8")
 
     @staticmethod
     def LoadString_Aligned(file):
@@ -98,7 +151,7 @@ class XBlock(object):
         start = file.tell() - 2
         file.seek(start + 4)
         data = file.read(4)
-        result = struct.unpack('f', data)
+        result = struct.unpack('f', data)[0]
         file.seek(start + padded(file.tell() - start))
         return result
 
@@ -148,18 +201,28 @@ class XBlock(object):
         return result
 
     @staticmethod
+    def LoadTriangle16Block(file):
+        file.seek(file.tell() + 2)  # Skip padding
+        data = file.read(4)
+        result = struct.unpack('HH', data)
+        return result
+
+    @staticmethod
     def LoadColorBlock(file):
-        file.seek(file.tell() + 2)
+        file.seek(file.tell() + 2)  # Skip padding
         data = file.read(4)
         r, g, b, a = struct.unpack('BBBB', data)
         return (r / 255.0, g / 255.0, b / 255.0, a / 255.0)
 
     @staticmethod
     def LoadUVBlock(file):
-        data = file.read(10)
-        result = struct.unpack('=hff', data)
-        # Ignore UV layer for now
-        return (result[1], result[2])
+        data = file.read(2)
+        layer_count = struct.unpack('h', data)[0]
+        data = file.read(8 * layer_count)
+        result = struct.unpack("%df" % layer_count * 2, data)
+        # Technically there is support for additional UV layers
+        #  but we're only using the first one at the moment
+        return result[:2]
 
     @staticmethod
     def LoadObjectBlock(file):
@@ -190,6 +253,14 @@ class XBlock(object):
         file.seek(start + padded(file.tell() - start))
         return result
 
+    @staticmethod
+    def SkipExtraData(file):
+        # TODO: Figure out what the "extra data" is
+        # Currently we just skip over the extra data block. It appears to
+        #  always be 2 bytes of padding followed by 16 bytes of data
+        # It only seems to appear in xanim_bin files...
+        file.seek(file.tell() + 18)
+
     # ############### #
     # Write Functions #
     # ############### #
@@ -202,14 +273,13 @@ class XBlock(object):
         file.write(string + '\0')
         size = len(string) + 1
         pad = padded(size) - size
-        for i in range(pad):
-            file.write('\0')
+        file.write("\0" * pad)
 
     # Meta Generic
 
     @staticmethod
     def WriteMetaObjectInfo(file, _hash, index, name):
-        name = __str2bytes__(name)
+        name = __str_packable__(name)
         data = struct.pack('Hh%ds' % (padded(len(name) + 1)),
                            _hash, index, name)
         file.write(data)
@@ -217,6 +287,11 @@ class XBlock(object):
     @staticmethod
     def WriteMetaInt16Block(file, _hash, value=0):
         data = struct.pack('Hh', _hash, value)
+        file.write(data)
+
+    @staticmethod
+    def WriteMetaUInt16Block(file, _hash, value=0):
+        data = struct.pack('HH', _hash, value)
         file.write(data)
 
     @staticmethod
@@ -293,11 +368,15 @@ class XBlock(object):
 
     @staticmethod
     def WriteBoneInfoBlock(file, bone_index, bone):
-        name = __str2bytes__(bone.name)
+        name = __str_packable__(bone.name)
         name_size = len(name)
         data = struct.pack('Hxxii%ds' % padded(name_size + 1), 0xF099,
                            bone_index, bone.parent, name)
         file.write(data)
+
+    @staticmethod
+    def WriteCosmeticInfoBlock(file, cosmetic_count):
+        XBlock.WriteMetaInt32Block(file, 0x7836, cosmetic_count)
 
     @staticmethod
     def WriteBoneIndexBlock(file, index):
@@ -305,7 +384,7 @@ class XBlock(object):
 
     @staticmethod
     def WriteVertex16Count(file, vert_count):
-        XBlock.WriteMetaInt16Block(file, 0x950D, vert_count)
+        XBlock.WriteMetaUInt16Block(file, 0x950D, vert_count)
 
     @staticmethod
     def WriteVertex32Count(file, vert_count):
@@ -313,7 +392,7 @@ class XBlock(object):
 
     @staticmethod
     def WriteVertex16Index(file, vert_index):
-        XBlock.WriteMetaInt16Block(file, 0x8F03, vert_index)
+        XBlock.WriteMetaUInt16Block(file, 0x8F03, vert_index)
 
     @staticmethod
     def WriteVertex32Index(file, vert_index):
@@ -326,7 +405,11 @@ class XBlock(object):
 
     @staticmethod
     def WriteFaceInfoBlock(file, face):
-        data = struct.pack('HBB', 0x562F, face.mesh_id, face.material_id)
+        if face.mesh_id > 255 or face.material_id > 255:
+            data = struct.pack('HHHH', 0x6711, 0x0,
+                               face.mesh_id, face.material_id)
+        else:
+            data = struct.pack('HBB', 0x562F, face.mesh_id, face.material_id)
         file.write(data)
 
     @staticmethod
@@ -352,10 +435,10 @@ class XBlock(object):
                                material,
                                extended_features=True):
         from .xmodel import serialize_image_string
-        strings = (__str2bytes__(material.name),
-                   __str2bytes__(material.type),
-                   __str2bytes__(serialize_image_string(
-                       material.images, extended_features=True))
+        strings = (__str_packable__(material.name),
+                   __str_packable__(material.type),
+                   __str_packable__(serialize_image_string(
+                       material.images, extended_features))
                    )
         sizes = tuple([padded(len(s) + 1) for s in strings])
         data = struct.pack('Hh%ds%ds%ds' %
@@ -395,16 +478,20 @@ class XBlock(object):
 
     @staticmethod
     def WriteNoteFrame(file, note):
-        string = __str2bytes__(note.string)
+        string = __str_packable__(note.string)
         data = struct.pack('Hxxi%ds' % (len(string) + 1),
                            0x1675, int(note.frame), string)
+        end = file.tell() + len(data)
         file.write(data)
+        file.write(bytearray(0) * padding(end))
 
 
 class XBinIO(object):
-    __slots__ = ('version')
+    __slots__ = ('version', )
 
-    def __init__(self): return
+    def __init__(self):
+        self.version = None
+        return
 
     @staticmethod
     def __decompress_internal__(file, dump=False):
@@ -472,6 +559,8 @@ class XBinIO(object):
         state = LoadState()
         dummy_mesh = XModel.Mesh("$default")
 
+        cosmetic_count = 0
+
         def InitModel(file):
             XBlock.LoadInt16Block(file)
             state.asset_type = 'MODEL'
@@ -486,12 +575,22 @@ class XBinIO(object):
                 raise TypeError("Found %s asset. Expected %s" %
                                 (state.asset_type, expected_type))
 
+        def LoadVersion(file):
+            self.version = XBlock.LoadInt16Block(file)
+
         def LoadBoneCount(file):
             self.bones = [None] * XBlock.LoadInt16Block(file)
 
+        def LoadCosmeticCount(file):
+            cosmetic_count = XBlock.LoadInt32Block(file)
+
+        def LoadSBoneCount(file):
+            raise NotImplementedError("Siege models are not supported yet")
+
         def LoadBoneInfo(file):
             index, parent, name = XBlock.LoadBoneBlock(file)
-            self.bones[index] = XModel.Bone(name, parent)
+            cosmetic = (index >= (len(self.bones) - cosmetic_count))
+            self.bones[index] = XModel.Bone(name, parent, cosmetic)
 
         def LoadBoneIndex(file):
             index = XBlock.LoadInt16Block(file)
@@ -506,7 +605,7 @@ class XBinIO(object):
 
         def LoadBoneScale(file):
             data = XBlock.LoadVec3Block(file)
-            # state.active_bone.scale = data
+            state.active_thing.scale = data
 
         def LoadBoneMatrix(file):
             data = XBlock.LoadShortVec3Block(file)
@@ -556,6 +655,13 @@ class XBinIO(object):
 
         def LoadTriInfo(file):
             object_index, material_index = XBlock.LoadTriangleBlock(file)
+            tri = XModel.Face(object_index, material_index)
+            tri.indices = []
+            dummy_mesh.faces.append(tri)
+            state.active_tri = tri
+
+        def LoadTri16Info(file):
+            object_index, material_index = XBlock.LoadTriangle16Block(file)
             tri = XModel.Face(object_index, material_index)
             tri.indices = []
             dummy_mesh.faces.append(tri)
@@ -665,11 +771,11 @@ class XBinIO(object):
             0xC355: ("Comment block", XBlock.LoadCommentBlock),
             0x46C8: ("Model identification block", InitModel),
             0x7AAC: ("Animation block", InitAnim),
-            0x24D1: ("Version block", XBlock.LoadInt16Block),
+            0x24D1: ("Version block", LoadVersion),
 
             # Model Specific
             0x76BA: ("Bone count block", LoadBoneCount),
-            0x7836: ("Cosmetic bone count block", XBlock.LoadInt32Block),
+            0x7836: ("Cosmetic bone count block", LoadCosmeticCount),
             0xF099: ("Bone block", LoadBoneInfo),  # friggin porter
             0xDD9A: ("Bone index block", LoadBoneIndex),
             0x9383: ("Vert / Bone offset block", LoadOffset),
@@ -687,6 +793,7 @@ class XBinIO(object):
 
             0xBE92: ("Number of faces block", LoadTriCount),
             0x562F: ("Triangle info block", LoadTriInfo),
+            0x6711: ("Triangle info (16) block", LoadTri16Info),
             0x89EC: ("Normal info", LoadTriVertNormal),
             0x6DD8: ("Color info", LoadTriVertColor),
             0x1AD4: ("UV info", LoadTriVertUV),
@@ -724,14 +831,13 @@ class XBinIO(object):
 
             # Misc (Unimplemented)
             0xBCD4: ("FIRSTFRAME", None),
-            0x6711: ("TRI16", None),
-            0x1FC2: ("NUMSBONES", None),
+            0x1FC2: ("NUMSBONES", LoadSBoneCount),
             0xB35E: ("NUMSWEIGHTS", None),
             0xEF69: ("QUATERNION", None),
             0xA65B: ("NUMIKPITCHLAYERS", None),
             0x1D7D: ("IKPITCHLAYER", None),
             0xA58B: ("ROTATION", None),
-            0x6EEE: ("EXTRA", None)
+            0x6EEE: ("EXTRA", XBlock.SkipExtraData)
         }
 
         # Read all blocks
@@ -745,7 +851,6 @@ class XBinIO(object):
                     raise NotImplementedError(
                         "Unimplemented Block '%s' at 0x%X" %
                         (data[0], offset))
-                    break
                 else:
                     if LOG_BLOCKS:
                         print("Loading Block: '%s' at 0x%X" %
@@ -760,7 +865,6 @@ class XBinIO(object):
                 offset = file.tell() - 2
                 raise ValueError("Unknown Block Hash 0x%X at 0x%X" %
                                  (block_hash, offset))
-                break
 
         # Return the dummy mesh for splitting if we imported a model
         if state.asset_type == 'MODEL':
@@ -773,13 +877,21 @@ class XBinIO(object):
 
         real_file = open(filepath, "wb")
         file = BytesIO()
-        version = 7
         if header_message != '':
             XBlock.WriteCommentBlock(file, header_message)
         XBlock.WriteModelBlock(file)
+        version = validate_version(self, version)
         XBlock.WriteVersionBlock(file, version)
 
+        cosmetic_count = 0
+        for bone in model.bones:
+            if bone.cosmetic:
+                cosmetic_count = cosmetic_count + 1
+
         XBlock.WriteBoneCountBlock(file, len(model.bones))
+        if cosmetic_count > 0:
+            XBlock.WriteCosmeticInfoBlock(file, cosmetic_count)
+
         for bone_index, bone in enumerate(model.bones):
             XBlock.WriteBoneInfoBlock(file, bone_index, bone)
 
@@ -862,7 +974,8 @@ class XBinIO(object):
         if header_message != '':
             XBlock.WriteCommentBlock(file, header_message)
         XBlock.WriteAnimBlock(file)
-        XBlock.WriteVersionBlock(file, 3)
+        version = validate_version(self, version)
+        XBlock.WriteVersionBlock(file, version)
         XBlock.WritePartCount(file, len(anim.parts))
 
         for part_index, part in enumerate(anim.parts):
@@ -878,8 +991,8 @@ class XBinIO(object):
                 XBlock.WriteOffsetBlock(file, part.offset)
                 XBlock.WriteMatrixBlock(file, part.matrix)
 
-        if len(anim.notes):
-            XBlock.WriteMetaInt16Block(file, 0x7A6C, len(anim.notes))
+        XBlock.WriteMetaInt16Block(file, 0x7A6C, len(anim.notes))
+        if anim.notes:
             for note in anim.notes:
                 XBlock.WriteNoteFrame(file, note)
 

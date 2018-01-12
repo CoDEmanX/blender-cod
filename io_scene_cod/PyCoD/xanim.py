@@ -1,7 +1,9 @@
+# <pep8 compliant>
+
 from time import strftime
 import os
 
-from .xbin import XBinIO
+from .xbin import XBinIO, validate_version
 
 # Can be int or float
 #  Changes the internal type for frames indices
@@ -28,6 +30,7 @@ class NoteTrack(object):
     def __init__(self):
         self.notes = []
         self.frame_count = None
+        self.first_frame = None
 
     def LoadFile_Raw(self, filepath):
         self.notes = []
@@ -74,6 +77,7 @@ class NoteTrack(object):
     The following are just accessors for various properties of the notetrack
     file
     """
+
     # Literally the first keyed frame in the XANIM_EXPORT file
     def FirstFrame(self):
         return self.first_frame
@@ -94,12 +98,12 @@ class NoteTrack(object):
 '''
 
 
-def __clamp_float__(value, range=(-1.0, 1.0)):
-    return max(min(value, range[1]), range[0])
+def __clamp_float__(value, clamp_range=(-1.0, 1.0)):
+    return max(min(value, clamp_range[1]), clamp_range[0])
 
 
-def __clamp_multi__(value, range=(-1.0, 1.0)):
-    return tuple([max(min(v, range[1]), range[0]) for v in value])
+def __clamp_multi__(value, clamp_range=(-1.0, 1.0)):
+    return tuple([max(min(v, clamp_range[1]), clamp_range[0]) for v in value])
 
 
 def __clean_float2str__(value):
@@ -109,17 +113,18 @@ def __clean_float2str__(value):
 class PartInfo(object):
     '''In the context of an XANIM_EXPORT file, a 'part' is essentially a
     bone'''
-    __slots__ = ('name')
+    __slots__ = ('name',)
 
     def __init__(self, name):
         self.name = name
 
 
 class FramePart(object):
-    __slots__ = ('offset', 'matrix')
+    __slots__ = ('offset', 'matrix', 'scale')
 
-    def __init__(self, offset=None, matrix=None):
+    def __init__(self, offset=None, matrix=None, scale=(1, 1, 1)):
         self.offset = offset
+        self.scale = scale
         if matrix is None:
             self.matrix = [(), (), ()]
         else:
@@ -146,7 +151,7 @@ class Frame(object):
             lines_read += 1
 
             line_split = line.split()
-            if len(line_split) == 0:
+            if not line_split:
                 continue
 
             for i, split in enumerate(line_split):
@@ -155,7 +160,7 @@ class Frame(object):
 
             if state == 0 and line_split[0] == "PART":
                 part_index = int(line_split[1])
-                if(part_index >= part_count):
+                if part_index >= part_count:
                     fmt = ("part_count does not index part_index -- "
                            "%d not in [0, %d)")
                     raise ValueError(fmt % (part_index, part_count))
@@ -167,6 +172,14 @@ class Frame(object):
                 self.parts[part_index] = FramePart(offset)
                 part = self.parts[part_index]
                 state = 2
+            elif state == 2 and line_split[0] == "SCALE":
+                # Scales are now deprecated and, in some cases
+                #  aren't actually required; so we reuse state 2
+                #  to do soft check for the SCALE block
+                scale = (float(line_split[1]),
+                         float(line_split[2]),
+                         float(line_split[3]))
+                part.scale = scale
             elif state == 2 and line_split[0] == "X":
                 x = (float(line_split[1]),
                      float(line_split[2]),
@@ -193,16 +206,16 @@ class Frame(object):
         self.parts = [FramePart()] * part_count
 
         lines_read = 0
-        for part in range(part_count):
+        for _ in range(part_count):
             lines_read += self.__load_part__(file, part_count)
         return lines_read
 
 
 class Anim(XBinIO, object):
-    __slots__ = ('version', 'framerate', 'parts', 'frames', 'notes')
+    __slots__ = ('framerate', 'parts', 'frames', 'notes')
 
     def __init__(self):
-        self.version = None
+        super(XBinIO, self).__init__()
         self.framerate = None
         self.parts = []
         self.frames = []
@@ -215,7 +228,7 @@ class Anim(XBinIO, object):
             lines_read += 1
 
             line_split = line.split()
-            if len(line_split) == 0:
+            if not line_split:
                 continue
 
             if line_split[0] == "ANIMATION":
@@ -234,7 +247,7 @@ class Anim(XBinIO, object):
             lines_read += 1
 
             line_split = line.split()
-            if len(line_split) == 0:
+            if not line_split:
                 continue
 
             if line_split[0] == "NUMPARTS":
@@ -258,7 +271,7 @@ class Anim(XBinIO, object):
             lines_read += 1
 
             line_split = line.split()
-            if len(line_split) == 0:
+            if not line_split:
                 continue
 
             if line_split[0] == "FRAMERATE":
@@ -301,7 +314,7 @@ class Anim(XBinIO, object):
             lines_read += 1
 
             line_split = line.split()
-            if len(line_split) == 0:
+            if not line_split:
                 continue
 
             # Skipping the extra data seems to be the fastest way to load these
@@ -367,14 +380,14 @@ class Anim(XBinIO, object):
                       header_message="", embed_notes=True):
         first_frame = 0
         last_frame = 0
-        if len(self.frames) != 0:
+        if self.frames:
             first_frame = min([frame.frame for frame in self.frames])
             last_frame = max([frame.frame for frame in self.frames]) + 1
 
         if last_frame - first_frame != len(self.frames):
             fmt = ("The keyed frame count and number of frames do not match"
                    " (%d != %d)")
-            err = (	fmt % (last_frame - first_frame, len(self.frames)))
+            err = (fmt % (last_frame - first_frame, len(self.frames)))
             raise ValueError(err)
 
         file = open(path, "w")
@@ -382,8 +395,7 @@ class Anim(XBinIO, object):
         file.write("// Export time: %s\n\n" % strftime("%a %b %d %H:%M:%S %Y"))
 
         # If there is no current version, fallback to the argument
-        if self.version is None:
-            self.version = version
+        version = validate_version(self, version)
 
         file.write("ANIMATION\n")
         file.write("VERSION %d\n\n" % self.version)
@@ -399,9 +411,11 @@ class Anim(XBinIO, object):
             file.write("FRAME %s\n" % __clean_float2str__(frame.frame))
             for part_index, part in enumerate(frame.parts):
                 file.write("PART %d\n" % part_index)
-                # Investigate precision options?
+                # TODO: Investigate precision options?
                 offset = (part.offset[0], part.offset[1], part.offset[2])
+                scale = (part.scale[0], part.scale[1], part.scale[2])
                 file.write("OFFSET %f %f %f\n" % offset)
+                file.write("SCALE %f %f %f\n" % scale)
                 file.write("X %f %f %f\n" % __clamp_multi__(part.matrix[0]))
                 file.write("Y %f %f %f\n" % __clamp_multi__(part.matrix[1]))
                 file.write("Z %f %f %f\n\n" % __clamp_multi__(part.matrix[2]))
@@ -420,7 +434,7 @@ class Anim(XBinIO, object):
             for part_index, part in enumerate(self.parts):
                 file.write("PART %d\n" % part_index)
                 track_count = 0 if part_index != 0 else (
-                    1 if len(self.notes) != 0 else 0)
+                    1 if self.notes else 0)
                 file.write("NUMTRACKS %d\n\n" % track_count)
                 if track_count != 0:
                     file.write("NOTETRACK 0\n")
@@ -470,8 +484,7 @@ class Anim(XBinIO, object):
 
     def WriteFile_Bin(self, path, version=3, header_message=""):
         # If there is no current version, fallback to the argument
-        if self.version is None:
-            self.version = version
+        version = validate_version(self, version)
         return self.__xbin_writefile_anim_internal__(path,
                                                      self.version,
                                                      header_message)
