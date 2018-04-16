@@ -142,6 +142,8 @@ def material_gen_image_dict(material):
     Generate a PyCoD compatible image dict from a given Blender material
     '''
     out = {}
+    if not material:
+        return out
     unk_count = 0
     for slot in material.texture_slots:
         if slot is None:
@@ -557,9 +559,16 @@ def save_model(self, context, filepath, armature, objects,
                                 use_vertex_colors_alpha_mode,
                                 global_scale))
 
+    missing_count = 0
     for material in materials:
         imgs = material_gen_image_dict(material)
-        mtl = XModel.Material(material.name, "Lambert", imgs)
+        try:
+            name = material.name
+        except:
+            name = "material" + str(missing_count)
+            missing_count = missing_count + 1
+
+        mtl = XModel.Material(name, "Lambert", imgs)
         model.materials.append(mtl)
 
     header_msg = shared.get_metadata_string(filepath)
