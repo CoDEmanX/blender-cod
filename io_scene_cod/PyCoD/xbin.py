@@ -323,8 +323,9 @@ class XBlock(object):
 
     @staticmethod
     def WriteCommentBlock(file, comment):
-        comment = bytearray(comment.encode('utf-8'))
-        data = struct.pack('Hxx%ds' % (len(comment) + 1), 0xC355, comment)
+        comment = __str_packable__(comment)
+        padded_size = padded(len(comment) + 1)
+        data = struct.pack('Hxx%ds' % padded_size, 0xC355, comment)
         file.write(data)
 
     @staticmethod
@@ -458,7 +459,7 @@ class XBlock(object):
 
     @staticmethod
     def WritePartIndex(file, index):
-        data = struct.pack('Hh', 0x745A, index)
+        data = struct.pack('Hh', 0x745A, int(index))
         file.write(data)
 
     @staticmethod
@@ -468,12 +469,12 @@ class XBlock(object):
 
     @staticmethod
     def WriteFrameCount(file, frame_count):
-        data = struct.pack('Hxxi', 0xB917, frame_count)
+        data = struct.pack('Hxxi', 0xB917, int(frame_count))
         file.write(data)
 
     @staticmethod
     def WriteFrameIndex(file, frame):
-        data = struct.pack('Hxxi', 0xC723, frame)
+        data = struct.pack('Hxxi', 0xC723, int(frame))
         file.write(data)
 
     @staticmethod

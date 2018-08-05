@@ -12,8 +12,15 @@ except ImportError:
     except ImportError:
         xrange = range
 
-        def byte2int(_bytes):
-            return ord(_bytes[0])
+        # If we're running Python 3 or newer, we must
+        #  define byte2int differently than with Python 2
+        import sys
+        if sys.version_info[0] >= 3:
+            import operator
+            byte2int = operator.itemgetter(0)
+        else:
+            def byte2int(_bytes):
+                return ord(_bytes[0])
 
     class CorruptError(Exception):
         pass
@@ -122,7 +129,10 @@ except ImportError:
 else:
     # Use python-lz4 if present
     __support_mode__ = 'python-lz4'
-    compress = lz4.block.compress
+
+    def compress(data):
+        return lz4.block.compress(data, store_size=False)
+
     uncompress = lz4.block.decompress
 
 support_info = 'LZ4: Using %s' % __support_mode__

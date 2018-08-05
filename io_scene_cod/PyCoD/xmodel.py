@@ -253,6 +253,27 @@ class Face(object):
                                  vert_tok_suffix=vert_tok_suffix)
         file.write("\n")
 
+    def isValid(self):
+        '''
+        Checks to make sure that the face consists of 3 vertices,
+        all of which refer to different vertex indices
+        '''
+        if(len(self.indices) != 3):
+            return False
+
+        indices = [index.vertex for index in self.indices]
+
+        if indices[0] == indices[1]:
+            return False
+
+        if indices[0] == indices[2]:
+            return False
+
+        if indices[1] == indices[2]:
+            return False
+
+        return True
+
 
 class Material(object):
     __slots__ = (
