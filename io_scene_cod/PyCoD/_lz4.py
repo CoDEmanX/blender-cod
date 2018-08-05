@@ -1,20 +1,26 @@
 try:
     # Try to import the python-lz4 package
-    import lz4
+    import lz4.block
 
-except:
+except ImportError:
     # If python-lz4 isn't present, fallback to using pure python
-    import sys
     from io import BytesIO
 
     try:
         from six import byte2int
         from six.moves import xrange
-    except:
+    except ImportError:
         xrange = range
 
-        def byte2int(bytes):
-            return int(bytes[0])
+        # If we're running Python 3 or newer, we must
+        #  define byte2int differently than with Python 2
+        import sys
+        if sys.version_info[0] >= 3:
+            import operator
+            byte2int = operator.itemgetter(0)
+        else:
+            def byte2int(_bytes):
+                return ord(_bytes[0])
 
     class CorruptError(Exception):
         pass
@@ -63,7 +69,7 @@ except:
         while True:
             # decode a block
             read_buf = src.read(1)
-            if len(read_buf) == 0:
+            if not read_buf:
                 raise CorruptError("EOF at reading literal-len")
             token = byte2int(read_buf)
 
@@ -77,7 +83,7 @@ except:
             dst.extend(read_buf)
 
             read_buf = src.read(2)
-            if len(read_buf) == 0:
+            if not read_buf:
                 if token & 0x0f != 0:
                     raise CorruptError(
                         "EOF, but match-len > 0: %u" % (token % 0x0f, ))
@@ -123,7 +129,10 @@ except:
 else:
     # Use python-lz4 if present
     __support_mode__ = 'python-lz4'
-    compress = lz4.block.compress
+
+    def compress(data):
+        return lz4.block.compress(data, store_size=False)
+
     uncompress = lz4.block.decompress
 
 support_info = 'LZ4: Using %s' % __support_mode__

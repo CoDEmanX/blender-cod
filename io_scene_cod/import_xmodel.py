@@ -312,8 +312,10 @@ def load(self, context,
                     loop[vert_alpha_layer] = [face_index_loop.color[3]] * 3
             used_faces.append(face)
 
+        unused_faces = []
+
         vert_count = len(sub_mesh.verts)
-        for face in sub_mesh.faces:
+        for face_index, face in enumerate(sub_mesh.faces):
             # Fix the winding order
             tmp = face.indices[2]
             face.indices[2] = face.indices[1]
@@ -324,7 +326,14 @@ def load(self, context,
             try:
                 f = bm.faces.new(indices)
             except ValueError:
-                sub_mesh.faces.remove(face)
+                # Mark the face as unused
+                unused_faces.append(face)
+
+                if not face.isValid():
+                    print("TRI %d is invalid! %s" %
+                          (face_index, [index.vertex for index in face.indices]))
+                    continue
+
                 for index in face.indices:
                     vert = index.vertex
                     if dup_verts_mapping[vert] is None:
@@ -334,6 +343,10 @@ def load(self, context,
                 dup_faces.append(face)
             else:
                 setup_tri(f)
+
+        # Remove the unused tris so they aren't accidentally used later
+        for face in unused_faces:
+            sub_mesh.faces.remove(face)
 
         if use_dup_tris:
             for vert in dup_verts:

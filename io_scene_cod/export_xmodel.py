@@ -142,6 +142,8 @@ def material_gen_image_dict(material):
     Generate a PyCoD compatible image dict from a given Blender material
     '''
     out = {}
+    if not material:
+        return out
     unk_count = 0
     for slot in material.texture_slots:
         if slot is None:
@@ -150,7 +152,15 @@ def material_gen_image_dict(material):
         if texture is None:
             continue
         if texture.type == 'IMAGE':
-            image = slot.texture.image
+            try:
+                tex_img = slot.texture.image
+                if tex_img.source != 'FILE':
+                    image = tex_img.name
+                else:
+                    image = os.path.basename(tex_img.filepath)
+            except:
+                image = "<undefined>"
+
             if slot.use_map_color_diffuse:
                 out['color'] = image
             elif slot.use_map_normal:
@@ -282,6 +292,12 @@ class ExportMesh(object):
                 vert = XModel.FaceVertex(
                     loop.vertex_index, loop.normal, colors[i], uv)
                 face.indices[i] = vert
+
+            # Fix winding order (again)
+            tmp = face.indices[2]
+            face.indices[2] = face.indices[1]
+            face.indices[1] = tmp
+
             mesh.faces.append(face)
 
         return mesh
@@ -500,7 +516,9 @@ def save_model(self, context, filepath, armature, objects,
                 if bone.parent.name in bone_table:
                     bone_parent_index = bone_table.index(bone.parent.name)
                 else:
-                    print("WARNING")  # TODO:
+                    # TODO: Add some sort of useful warning for when we try
+                    #  to export a bone that isn't actually in the bone table
+                    print("WARNING")
                     bone_parent_index = 0
             else:
                 bone_parent_index = -1
@@ -511,12 +529,13 @@ def save_model(self, context, filepath, armature, objects,
             #  Or will it fix the root only, but mess up all other roll angles?
             if bone_index == 0:
                 matrix = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
+                offset = (0, 0, 0)
             else:
                 mtx = (armature_matrix *
                        bone.matrix_local).to_3x3().transposed()
                 matrix = [tuple(mtx[0]), tuple(mtx[1]), tuple(mtx[2])]
+                offset = (armature_matrix * bone.head_local) * global_scale
 
-            offset = (armature_matrix * bone.head_local) * global_scale
             model_bone.offset = tuple(offset)
             model_bone.matrix = matrix
             model.bones.append(model_bone)
@@ -540,9 +559,16 @@ def save_model(self, context, filepath, armature, objects,
                                 use_vertex_colors_alpha_mode,
                                 global_scale))
 
+    missing_count = 0
     for material in materials:
         imgs = material_gen_image_dict(material)
-        mtl = XModel.Material(material.name, "Lambert", imgs)
+        try:
+            name = material.name
+        except:
+            name = "material" + str(missing_count)
+            missing_count = missing_count + 1
+
+        mtl = XModel.Material(name, "Lambert", imgs)
         model.materials.append(mtl)
 
     header_msg = shared.get_metadata_string(filepath)

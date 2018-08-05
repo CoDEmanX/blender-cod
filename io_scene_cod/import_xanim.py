@@ -190,10 +190,10 @@ def load_anim(self, context, armature,
     if update_scene_fps:
         scene.render.fps = anim.framerate
 
-    if fps_scale_type is 'SCENE':
+    if fps_scale_type == 'SCENE':
         fps_scale_target_fps = scene.render.fps
 
-    if fps_scale_type is 'DISABLED':
+    if fps_scale_type == 'DISABLED':
         frame_scale = 1
     else:
         frame_scale = fps_scale_target_fps / anim.framerate
