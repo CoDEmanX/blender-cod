@@ -14,7 +14,7 @@ def PackageName(name, version):
         return "%s_v%d.%d.%d.zip" % (name, *version)
 
 
-pkgFile = PackageName("Blender-CoD", "dev")
+pkgFile = PackageName("Blender-CoD", (0, 5, 2))
 
 # Create the package archive
 file = zipfile.ZipFile(pkgFile, "w")
