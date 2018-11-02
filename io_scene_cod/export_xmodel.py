@@ -129,7 +129,7 @@ def gather_exportable_objects(self, context,
                 obs.append(ob)
 
     # Fallback to exporting only the selected object if we couldn't find any
-    if armature is not None:
+    if armature is None:
         if len(obs) == 0 and context.active_object is not None:
             if ob.type == 'MESH':
                 obs = [context.active_object]
@@ -353,6 +353,8 @@ def save(self, context, filepath,
                                                   use_armature,
                                                   quiet=False)
 
+    # If we were unable to detect any valid rigged objects
+    # we'll use the selected mesh.
     if len(objects) == 0:
         return "There are no objects to export"
 
