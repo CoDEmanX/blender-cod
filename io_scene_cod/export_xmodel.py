@@ -288,9 +288,12 @@ class ExportMesh(object):
                 colors = [(1.0, 1.0, 1.0, alpha_default)] * 4
             for i, loop_index in enumerate(polygon.loop_indices):
                 loop = self.mesh.loops[loop_index]
-                uv = tuple(uv_layer.data[loop_index].uv)
+                uv = uv_layer.data[loop_index].uv
                 vert = XModel.FaceVertex(
-                    loop.vertex_index, loop.normal, colors[i], uv)
+                    loop.vertex_index,
+                    loop.normal,
+                    colors[i],
+                    (uv.x, 1.0 - uv.y))
                 face.indices[i] = vert
 
             # Fix winding order (again)
