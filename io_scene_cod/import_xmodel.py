@@ -268,9 +268,7 @@ def load(self, context,
 
         # Add Vertex Color Layer
         if use_vertex_colors:
-            # The first layer added here will be the active one for this mesh
             vert_color_layer = bm.loops.layers.color.new("Color")
-            vert_alpha_layer = bm.loops.layers.color.new("Alpha")
 
         # Add Verts
         for vert in sub_mesh.verts:
@@ -314,8 +312,8 @@ def load(self, context,
                 loop[uv_layer].uv = uv
                 # Vertex Colors
                 if use_vertex_colors:
-                    loop[vert_color_layer] = face_index_loop.color[:3]
-                    loop[vert_alpha_layer] = [face_index_loop.color[3]] * 3
+                    loop[vert_color_layer] = face_index_loop.color
+
             used_faces.append(face)
 
         unused_faces = []
