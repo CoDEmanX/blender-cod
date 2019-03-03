@@ -424,7 +424,12 @@ def load(self, context,
 
             mesh.normals_split_custom_set(tuple(zip(*(iter(clnors),) * 3)))
             mesh.use_auto_smooth = True
-            mesh.show_edge_sharp = True
+
+            # This was used to highlight sharp edges in legacy versions
+            # In Blender 2.8x, it uses the View3D Overlay API - but since
+            # it's enabled by default in those versions, we don't need any
+            # special code
+            # mesh.show_edge_sharp = True
 
         else:
             mesh.validate()
@@ -473,10 +478,10 @@ def load(self, context,
     if use_armature:
         # Create the skeleton
         armature = bpy.data.armatures.new("%s_amt" % model.name)
-        armature.draw_type = "STICK"
+        armature.display_type = "STICK"
 
         skel_obj = bpy.data.objects.new("%s_skel" % model.name, armature)
-        skel_obj.show_x_ray = True
+        skel_obj.show_in_front = True
 
         # Add the skeleton object to the scene
         scene.collection.objects.link(skel_obj)
