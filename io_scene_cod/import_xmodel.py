@@ -451,7 +451,7 @@ def load(self, context,
         # Create Vertex Groups
         # These automatically weight the verts based on the deform groups
         for bone in model.bones:
-            obj.vertex_groups.new(bone.name.lower())
+            obj.vertex_groups.new(name=bone.name.lower())
 
         # Assign the texture images to the current mesh (for Texture view)
         if load_images:
