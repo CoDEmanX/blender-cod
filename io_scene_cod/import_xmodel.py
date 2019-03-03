@@ -171,6 +171,7 @@ def load(self, context,
     #  (or None if they failed to load)
     material_images = {}
 
+    '''
     for material in model.materials:
         mat = bpy.data.materials.get(material.name)
         if mat is None:
@@ -251,6 +252,7 @@ def load(self, context,
             if mat not in materials:
                 print("Material '%s' already exists!" % material.name)
         materials.append(mat)
+    '''
 
     # Meshes
     mesh_objs = []  # Mesh objects that we're going to link the skeleton to
@@ -293,11 +295,13 @@ def load(self, context,
         # Inner function used set up a bmesh tri's normals (into loop_normals),
         #  uv, materials, etc.
         def setup_tri(f):
+            '''
             # Assign the face's material & increment the material usage counter
             material_index = face.material_id
             f.material_index = material_index
 
             material_usage_counts[material_index] += 1
+            '''
 
             # Assign the face's UV layer
             for loop_index, loop in enumerate(f.loops):
@@ -460,10 +464,12 @@ def load(self, context,
                     if color_map in bpy.data.images:
                         material_image_map[index] = bpy.data.images[color_map]
 
+            '''
             # Assign the image for each face
             uv_faces = mesh.uv_textures[0].data
             for index, face in enumerate(used_faces):
                 uv_faces[index].image = material_image_map[face.material_id]
+            '''
 
     if use_armature:
         # Create the skeleton
