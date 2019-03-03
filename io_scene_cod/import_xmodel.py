@@ -151,6 +151,7 @@ def load(self, context,
     load_images = True
 
     scene = bpy.context.scene
+    view_layer = bpy.context.view_layer
 
     # Load the model
     model_name = os.path.basename(filepath)
@@ -444,8 +445,8 @@ def load(self, context,
         obj = bpy.data.objects.new(obj_name, mesh)
         mesh_objs.append(obj)
 
-        scene.objects.link(obj)
-        scene.objects.active = obj
+        scene.collection.objects.link(obj)
+        view_layer.objects.active = obj
 
         # Create Vertex Groups
         # These automatically weight the verts based on the deform groups
@@ -478,8 +479,8 @@ def load(self, context,
         skel_obj.show_x_ray = True
 
         # Add the skeleton object to the scene
-        scene.objects.link(skel_obj)
-        scene.objects.active = skel_obj
+        scene.collection.objects.link(skel_obj)
+        view_layer.objects.active = skel_obj
 
         bpy.ops.object.mode_set(mode='EDIT')
 
