@@ -44,31 +44,31 @@ def get_mat_rest(pose_bone, mat_pose_parent, mat_local_parent):
 
         # --------- rotscale
         if (not bone.use_inherit_rotation and not bone.use_inherit_scale):
-            mat_rotscale = mat_local_parent * mat_offs
+            mat_rotscale = mat_local_parent @ mat_offs
 
         elif not bone.use_inherit_rotation:
             mat_size = Matrix.Identity(4)
             for i in range(3):
                 mat_size[i][i] = mat_pose_parent.col[i].magnitude
-            mat_rotscale = mat_size * mat_local_parent * mat_offs
+            mat_rotscale = mat_size @ mat_local_parent @ mat_offs
 
         elif not bone.use_inherit_scale:
-            mat_rotscale = mat_pose_parent.normalized() * mat_offs
+            mat_rotscale = mat_pose_parent.normalized() @ mat_offs
 
         else:
-            mat_rotscale = mat_pose_parent * mat_offs
+            mat_rotscale = mat_pose_parent @ mat_offs
 
         # --------- location
         if not bone.use_local_location:
-            mat_a = Matrix.Translation(mat_pose_parent * mat_offs.translation)
+            mat_a = Matrix.Translation(mat_pose_parent @ mat_offs.translation)
 
             mat_b = mat_pose_parent.copy()
             mat_b.translation = Vector()
 
-            mat_loc = mat_a * mat_b
+            mat_loc = mat_a @ mat_b
 
         elif (not bone.use_inherit_rotation or not bone.use_inherit_scale):
-            mat_loc = mat_pose_parent * mat_offs
+            mat_loc = mat_pose_parent @ mat_offs
 
         else:
             mat_loc = mat_rotscale.copy()
@@ -88,9 +88,9 @@ def calc_basis(pose_bone, matrix, parent_mtx, parent_mtx_local):
     mat_rotscale, mat_loc = get_mat_rest(pose_bone,
                                          parent_mtx,
                                          parent_mtx_local)
-    basis = (matrix.to_3x3().inverted() * mat_rotscale.to_3x3()).transposed()
+    basis = (matrix.to_3x3().inverted() @ mat_rotscale.to_3x3()).transposed()
     basis.resize_4x4()
-    basis.translation = mat_loc.inverted() * matrix.translation
+    basis.translation = mat_loc.inverted() @ matrix.translation
     return basis
 
 
