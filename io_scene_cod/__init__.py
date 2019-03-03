@@ -435,13 +435,13 @@ class ImportXAnim(bpy.types.Operator, ImportHelper):
         sub.prop(self, 'use_notetrack_file')
 
         sub = layout.box()
-        split = sub.split(0.55)
-        split.label("Scale FPS:")
+        split = sub.split(factor=0.55)
+        split.label(text="Scale FPS:")
         split.prop(self, 'fps_scale_type', text="")
         if self.fps_scale_type == 'DISABLED':
             sub.prop(self, "update_scene_fps")
         elif self.fps_scale_type == 'SCENE':
-            sub.label("Target Framerate: %.2f" % context.scene.render.fps)
+            sub.label(text="Target Framerate: %.2f" % context.scene.render.fps)
         elif self.fps_scale_type == 'CUSTOM':
             sub.prop(self, 'fps_scale_target_fps')
         layout.prop(self, 'anim_offset')
@@ -691,7 +691,7 @@ class ExportXModel(bpy.types.Operator, ExportHelper):
 
         # Axis?
 
-        sub = layout.split(0.5)
+        sub = layout.split(factor=0.5)
         sub.prop(self, 'apply_modifiers')
         sub = sub.row()
         sub.enabled = self.apply_modifiers
@@ -708,8 +708,8 @@ class ExportXModel(bpy.types.Operator, ExportHelper):
             sub = layout.split()
             sub.enabled = (self.use_vertex_colors and
                            self.use_vertex_colors_alpha)
-            sub = sub.split(0.5)
-            sub.label("Vertex Alpha Layer")
+            sub = sub.split(factor=0.5)
+            sub.label(text="Vertex Alpha Layer")
             sub.prop(self, 'use_vertex_colors_alpha_mode', text="")
 
         layout.prop(self, 'use_vertex_cleanup')
@@ -949,7 +949,7 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
         # Filename Options
         if self.use_all_actions and action_count > 0:
             sub = layout.column(align=True)
-            sub.label("Filename Options:")
+            sub.label(text="Filename Options:")
             box = sub.box()
             sub = box.column(align=True)
 
@@ -973,7 +973,7 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
         # Notetracks
         col = layout.column(align=True)
         sub = col.row()
-        sub = sub.split(0.45)
+        sub = sub.split(factor=0.45)
         sub.prop(self, 'use_notetracks', text="Use Notetrack")
         sub.row().prop(self, 'use_notetrack_mode', expand=True)
         sub = col.column()
@@ -991,7 +991,7 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
 
         # Frame Range
         sub = layout.row()
-        sub.label("Frame Range:")
+        sub.label(text="Frame Range:")
         sub.prop(self, 'use_frame_range_mode', text="")
 
         sub = layout.row(align=True)
