@@ -28,14 +28,16 @@ from bpy.props import (BoolProperty, IntProperty, FloatProperty,
                        StringProperty, EnumProperty, CollectionProperty)
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 
+from bpy.utils import register_class, unregister_class
+
 import time
 import os
 
 bl_info = {
     "name": "Blender-CoD",
     "author": "CoDEmanX, Flybynyt, SE2Dev",
-    "version": (0, 5, 2),
-    "blender": (2, 78, 0),
+    "version": (0, 6, 0),
+    "blender": (2, 80, 0),
     "location": "File > Import  |  File > Export",
     "description": "Import-Export XModel_Export, XAnim_Export",
     "warning": "Alpha version, please report any bugs!",
@@ -1043,20 +1045,39 @@ def menu_func_export_submenu(self, context):
     self.layout.menu(Export_SubMenu.bl_idname, text="Call of Duty")
 
 
+'''
+    CLASS REGISTRATION
+    SEE https://wiki.blender.org/wiki/Reference/Release_Notes/2.80/Python_API/Addons
+'''
+
+classes = (
+    BlenderCoD_Preferences,
+    ImportXModel,
+    ImportXAnim,
+    ExportXModel,
+    ExportXAnim,
+    Import_SubMenu,
+    Export_SubMenu
+)
+
+
 def register():
-    bpy.utils.register_module(__name__)
-    preferences = bpy.context.user_preferences.addons[__name__].preferences
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+    # __name__ is the same as the package name (io_scene_cod)
+    preferences = bpy.context.preferences.addons[__name__].preferences
 
     # Each of these appended functions is executed every time the
     # corresponding menu list is shown
     if not preferences.use_submenu:
-        bpy.types.INFO_MT_file_import.append(menu_func_xmodel_import)
-        bpy.types.INFO_MT_file_import.append(menu_func_xanim_import)
-        bpy.types.INFO_MT_file_export.append(menu_func_xanim_export)
-        bpy.types.INFO_MT_file_export.append(menu_func_xmodel_export)
+        bpy.types.TOPBAR_MT_file_import.append(menu_func_xmodel_import)
+        bpy.types.TOPBAR_MT_file_import.append(menu_func_xanim_import)
+        bpy.types.TOPBAR_MT_file_export.append(menu_func_xmodel_export)
+        bpy.types.TOPBAR_MT_file_export.append(menu_func_xanim_export)
     else:
-        bpy.types.INFO_MT_file_import.append(menu_func_import_submenu)
-        bpy.types.INFO_MT_file_export.append(menu_func_export_submenu)
+        bpy.types.TOPBAR_MT_file_import.append(menu_func_import_submenu)
+        bpy.types.TOPBAR_MT_file_export.append(menu_func_export_submenu)
 
     # Set the global 'plugin_preferences' variable for each module
     from . import shared as shared
@@ -1064,17 +1085,19 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_module(__name__)
-
     # You have to try to unregister both types of the menus here because
-    # the preference will have already been changed by the time this func runs
-    bpy.types.INFO_MT_file_import.remove(menu_func_xmodel_import)
-    bpy.types.INFO_MT_file_import.remove(menu_func_xanim_import)
-    bpy.types.INFO_MT_file_export.remove(menu_func_xmodel_export)
-    bpy.types.INFO_MT_file_export.remove(menu_func_xanim_export)
+    # the preferences will have already been changed by the time this func runs
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_xmodel_import)
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_xanim_import)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_xmodel_export)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_xanim_export)
 
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_submenu)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export_submenu)
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_submenu)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_submenu)
+
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
+
 
 if __name__ == "__main__":
     register()
