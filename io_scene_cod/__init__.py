@@ -968,7 +968,7 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
                 icon = 'ERROR'
                 example = str(err)
 
-            sub.label(example, icon=icon)
+            sub.label(text=example, icon=icon)
 
         # Notetracks
         col = layout.column(align=True)
