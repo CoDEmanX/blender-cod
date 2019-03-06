@@ -206,7 +206,7 @@ def load(self, context,
                     elif image_name in bpy.data.images:
                         image = bpy.data.images[image_name]
                     else:
-                        image = None
+                        image = material_images[image_name]
 
                     # DEPRECATED
                     '''
