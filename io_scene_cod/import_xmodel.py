@@ -205,7 +205,7 @@ def load(self, context,
                     elif image_name in bpy.data.images:
                         image = bpy.data.images[image_name]
                     else:
-                        image = None
+                        image = material_images[image_name]
 
                     # Create the texture - We exclude the extension in the
                     #  texture name
