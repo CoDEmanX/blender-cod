@@ -151,7 +151,7 @@ else:
     from . import PyCoD
 
 
-class ImportXModel(bpy.types.Operator, ImportHelper):
+class COD_MT_import_xmodel(bpy.types.Operator, ImportHelper):
     bl_idname = "import_scene.xmodel"
     bl_label = "Import XModel"
     bl_description = "Import a CoD XMODEL_EXPORT / XMODEL_BIN File"
@@ -308,7 +308,7 @@ class ImportXModel(bpy.types.Operator, ImportHelper):
             sub.prop(self, 'merge_skeleton')
 
 
-class ImportXAnim(bpy.types.Operator, ImportHelper):
+class COD_MT_import_xanim(bpy.types.Operator, ImportHelper):
     bl_idname = "import_scene.xanim"
     bl_label = "Import XAnim"
     bl_description = "Import a CoD XANIM_EXPORT / XANIM_BIN File"
@@ -447,7 +447,7 @@ class ImportXAnim(bpy.types.Operator, ImportHelper):
         layout.prop(self, 'anim_offset')
 
 
-class ExportXModel(bpy.types.Operator, ExportHelper):
+class COD_MT_export_xmodel(bpy.types.Operator, ExportHelper):
     bl_idname = "export_scene.xmodel"
     bl_label = 'Export XModel'
     bl_description = "Export a CoD XMODEL_EXPORT / XMODEL_BIN File"
@@ -724,7 +724,7 @@ class ExportXModel(bpy.types.Operator, ExportHelper):
         sub.prop(self, 'use_weight_min_threshold')
 
 
-class ExportXAnim(bpy.types.Operator, ExportHelper):
+class COD_MT_export_xanim(bpy.types.Operator, ExportHelper):
     bl_idname = "export_scene.xanim"
     bl_label = 'Export XAnim'
     bl_description = "Export a CoD XANIM_EXPORT / XANIM_BIN File"
@@ -1000,8 +1000,8 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
         sub.prop(self, 'frame_end')
 
 
-class Import_SubMenu(bpy.types.Menu):
-    bl_idname = "import_scene.cod"
+class COD_MT_import_submenu(bpy.types.Menu):
+    bl_idname = "COD_MT_import_submenu"
     bl_label = "Call of Duty"
 
     def draw(self, context):
@@ -1009,8 +1009,8 @@ class Import_SubMenu(bpy.types.Menu):
         menu_func_xanim_import(self, context)
 
 
-class Export_SubMenu(bpy.types.Menu):
-    bl_idname = "export_scene.cod"
+class COD_MT_export_submenu(bpy.types.Menu):
+    bl_idname = "COD_MT_export_submenu"
     bl_label = "Call of Duty"
 
     def draw(self, context):
@@ -1019,31 +1019,31 @@ class Export_SubMenu(bpy.types.Menu):
 
 
 def menu_func_xmodel_import(self, context):
-    self.layout.operator(ImportXModel.bl_idname,
+    self.layout.operator(COD_MT_import_xmodel.bl_idname,
                          text="CoD XModel (.XMODEL_EXPORT, .XMODEL_BIN)")
 
 
 def menu_func_xanim_import(self, context):
-    self.layout.operator(ImportXAnim.bl_idname,
+    self.layout.operator(COD_MT_import_xanim.bl_idname,
                          text="CoD XAnim (.XANIM_EXPORT, .XANIM_BIN)")
 
 
 def menu_func_xmodel_export(self, context):
-    self.layout.operator(ExportXModel.bl_idname,
+    self.layout.operator(COD_MT_export_xmodel.bl_idname,
                          text="CoD XModel (.XMODEL_EXPORT, .XMODEL_BIN)")
 
 
 def menu_func_xanim_export(self, context):
-    self.layout.operator(ExportXAnim.bl_idname,
+    self.layout.operator(COD_MT_export_xanim.bl_idname,
                          text="CoD XAnim (.XANIM_EXPORT, .XANIM_BIN)")
 
 
 def menu_func_import_submenu(self, context):
-    self.layout.menu(Import_SubMenu.bl_idname, text="Call of Duty")
+    self.layout.menu(COD_MT_import_submenu.bl_idname, text="Call of Duty")
 
 
 def menu_func_export_submenu(self, context):
-    self.layout.menu(Export_SubMenu.bl_idname, text="Call of Duty")
+    self.layout.menu(COD_MT_export_submenu.bl_idname, text="Call of Duty")
 
 
 '''
@@ -1053,12 +1053,12 @@ def menu_func_export_submenu(self, context):
 
 classes = (
     BlenderCoD_Preferences,
-    ImportXModel,
-    ImportXAnim,
-    ExportXModel,
-    ExportXAnim,
-    Import_SubMenu,
-    Export_SubMenu
+    COD_MT_import_xmodel,
+    COD_MT_import_xanim,
+    COD_MT_export_xmodel,
+    COD_MT_export_xanim,
+    COD_MT_import_submenu,
+    COD_MT_export_submenu
 )
 
 
