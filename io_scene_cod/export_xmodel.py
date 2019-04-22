@@ -102,7 +102,7 @@ def gather_exportable_objects(self, context,
         if ob.type != 'MESH':
             continue
 
-        if use_selection and not ob.select:
+        if use_selection and not ob.select_get():
             continue
 
         if len(ob.material_slots) < 1:

@@ -676,8 +676,9 @@ class COD_MT_export_xmodel(bpy.types.Operator, ExportHelper):
 
         # Calculate number of selected mesh objects
         if context.mode in ('OBJECT', 'PAINT_WEIGHT'):
+            objects = bpy.data.objects
             meshes_selected = len(
-                [m for m in bpy.data.objects if m.type == 'MESH' and m.select])
+                [m for m in objects if m.type == 'MESH' and m.select_get()])
         else:
             meshes_selected = 0
 

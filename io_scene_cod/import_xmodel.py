@@ -77,7 +77,7 @@ def join_armatures(skel1_ob, skel2_ob, skel2_mesh_obs):
 
     # Ensure that the context is correct
     bpy.context.scene.objects.active = skel1_ob
-    skel1_ob.select = True
+    skel1_ob.select_set(state=True)
 
     bpy.ops.object.mode_set(mode='EDIT')
     ebs = skel1_ob.data.edit_bones
