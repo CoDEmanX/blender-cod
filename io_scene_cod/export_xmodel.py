@@ -471,8 +471,9 @@ def save_model(self, context, filepath, armature, objects,
 
         # to_mesh() applies enabled modifiers only
         try:
-            mesh = ob.to_mesh(
-                scene=scene, apply_modifiers=True, settings=modifier_quality)
+            # NOTE There's no way to get a 'render' depsgraph for now
+            depsgraph = context.evaluated_depsgraph_get()
+            mesh = ob.evaluated_get(depsgraph).to_mesh()
         except RuntimeError:
             mesh = None
 
