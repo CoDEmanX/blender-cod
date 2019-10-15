@@ -537,10 +537,10 @@ def save_model(self, context, filepath, armature, objects,
                 matrix = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
                 offset = (0, 0, 0)
             else:
-                mtx = (armature_matrix *
+                mtx = (armature_matrix @
                        bone.matrix_local).to_3x3().transposed()
                 matrix = [tuple(mtx[0]), tuple(mtx[1]), tuple(mtx[2])]
-                offset = (armature_matrix * bone.head_local) * global_scale
+                offset = (armature_matrix @ bone.head_local) * global_scale
 
             model_bone.offset = tuple(offset)
             model_bone.matrix = matrix
