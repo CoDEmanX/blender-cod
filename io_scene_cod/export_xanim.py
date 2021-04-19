@@ -184,7 +184,8 @@ def save(self, context, filepath="",
     for index, action in enumerate(actions):
         if use_all_actions:
             filename = filename_format.format(action.name, basename, index)
-            filepath = path + filename + ".XANIM_EXPORT"
+            filepath = path + filename + "." + target_format
+            ob.animation_data.action = action
         export_action(self, context, progress, action, filepath,
                       target_format,
                       global_scale,
