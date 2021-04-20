@@ -36,8 +36,8 @@ import os
 bl_info = {
     "name": "Blender-CoD",
     "author": "CoDEmanX, Flybynyt, SE2Dev",
-    "version": (0, 6, 0),
-    "blender": (2, 80, 0),
+    "version": (0, 7, 0),
+    "blender": (2, 90, 0),
     "location": "File > Import  |  File > Export",
     "description": "Import-Export XModel_Export, XAnim_Export",
     "warning": "Alpha version, please report any bugs!",
