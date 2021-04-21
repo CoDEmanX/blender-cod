@@ -284,7 +284,7 @@ class COD_MT_import_xmodel(bpy.types.Operator, ImportHelper):
             row = layout.row(align=True)
             row.prop(self, "global_scale")
             sub = row.row(align=True)
-            sub.prop(self, "apply_unit_scale", text="", icon='NDOF_TRANS')
+            sub.prop(self, "apply_unit_scale", text="")
 
             layout.prop(self, 'use_single_mesh')
 
@@ -423,7 +423,7 @@ class COD_MT_import_xanim(bpy.types.Operator, ImportHelper):
         row = layout.row(align=True)
         row.prop(self, "global_scale")
         sub = row.row(align=True)
-        sub.prop(self, "apply_unit_scale", text="", icon='NDOF_TRANS')
+        sub.prop(self, "apply_unit_scale", text="")
 
         layout.prop(self, 'use_actions')
         sub = layout.split()
@@ -688,7 +688,7 @@ class COD_MT_export_xmodel(bpy.types.Operator, ExportHelper):
         row = layout.row(align=True)
         row.prop(self, "global_scale")
         sub = row.row(align=True)
-        sub.prop(self, "apply_unit_scale", text="", icon='NDOF_TRANS')
+        sub.prop(self, "apply_unit_scale", text="")
 
         # Axis?
 
@@ -938,7 +938,7 @@ class COD_MT_export_xanim(bpy.types.Operator, ExportHelper):
         row = layout.row(align=True)
         row.prop(self, "global_scale")
         sub = row.row(align=True)
-        sub.prop(self, "apply_unit_scale", text="", icon='NDOF_TRANS')
+        sub.prop(self, "apply_unit_scale", text="")
 
         action_count = len(bpy.data.actions)
 
