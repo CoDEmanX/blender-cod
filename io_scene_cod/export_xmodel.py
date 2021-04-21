@@ -589,5 +589,5 @@ def save_model(self, context, filepath, armature, objects,
     for mesh in meshes:
         mesh.clear()
 
-    # Do we need this scene.update?
-    context.scene.update()
+    # Do we need this view_layer.update?
+    context.view_layer.update()

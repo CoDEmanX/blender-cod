@@ -553,12 +553,12 @@ def load(self, context,
             skel_obj.location = (0, -1, 0)
 
             # Is this necessary?
-            bpy.context.scene.update()
+            bpy.context.view_layer.update()
 
             # Merge the skeletons together
             if merge_skeleton:
                 join_armatures(skel_old, skel_obj, mesh_objs)
                 bpy.ops.object.mode_set(mode='POSE')
 
-    # scene.update()
+    # view_layer.update()
     bpy.ops.object.mode_set(mode='OBJECT')

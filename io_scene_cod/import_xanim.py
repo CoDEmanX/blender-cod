@@ -303,5 +303,5 @@ def load_anim(self, context, armature,
             frame = anim_note.frame * frame_scale - frame_shift
             note = markers.new(name, frame=frame)
 
-    context.scene.update()
+    context.view_layer.update()
     return anim
