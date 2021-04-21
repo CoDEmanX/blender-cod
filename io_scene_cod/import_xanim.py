@@ -293,9 +293,15 @@ def load_anim(self, context, armature,
 
     # Load the notes
     if use_notetracks:
+        if use_actions:
+            markers = action.pose_markers
+        else:
+            markers = context.scene.timeline_markers
+
         for anim_note in anim.notes:
-            note = action.pose_markers.new(anim_note.string)
-            note.frame = anim_note.frame * frame_scale - frame_shift
+            name = anim_note.string
+            frame = anim_note.frame * frame_scale - frame_shift
+            note = markers.new(name, frame=frame)
 
     context.scene.update()
     return anim
