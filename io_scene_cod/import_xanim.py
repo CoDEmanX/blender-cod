@@ -200,14 +200,14 @@ def load_anim(self, context, armature,
 
     if update_scene_range:
         frames = [frame.frame for frame in anim.frames]
-        scene.frame_start = min(frames) * frame_scale
-        scene.frame_end = max(frames) * frame_scale
+        anim_frame_start = min(frames) * frame_scale
+        anim_frame_end = max(frames) * frame_scale
 
         # Adjust the frame shift so that if the first frame doesn't move when
         #  the anim gets scaled, apply the anim_offset on top of that
-        frame_shift = anim_offset - scene.frame_start
-        scene.frame_start = scene.frame_start - frame_shift
-        scene.frame_end = scene.frame_end - frame_shift
+        frame_shift = anim_offset - anim_frame_start
+        scene.frame_start = anim_frame_start + frame_shift
+        scene.frame_end = anim_frame_end + frame_shift
     else:
         frame_shift = anim_offset
 
