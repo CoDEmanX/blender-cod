@@ -149,7 +149,7 @@ def get_image_textures(node_tree: bpy.types.NodeTree) -> Iterator[TextureNodeIma
             yield from get_image_textures(node.node_tree)
 
 
-def material_gen_image_dict(material: bpy.types.Material):
+def material_gen_image_dict(material: bpy.types.Material) -> dict:
     '''
     Generate a PyCoD compatible image dict from a given Blender material
     '''
@@ -167,13 +167,18 @@ def material_gen_image_dict(material: bpy.types.Material):
         except:
             image = "<undefined>"
 
-        if texture.use_map_color_diffuse:
-            out['color'] = image
-        elif texture.use_map_normal:
-            out['normal'] = image
-        else:
-            out['unk_%d' % unk_count] = image
-            unk_count += 1
+        # TODO Assume the image texture is being used for color
+        # until an algorithm is developed to determine what each texture is used for
+        out['color'] = image
+
+        # if texture.use_map_color_diffuse:
+        #     out['color'] = image
+        # elif texture.use_map_normal:
+        #     out['normal'] = image
+        # else:
+        #     out['unk_%d' % unk_count] = image
+        #     unk_count += 1
+
     return out
 
 
