@@ -25,7 +25,8 @@ import bmesh
 import os
 from itertools import repeat
 
-from bpy.types import NodeGroup, TextureNodeGroup, NodeCustomGroup, TextureNodeImage
+from bpy.types import (NodeGroup, NodeCustomGroup, ShaderNodeTexImage,
+                       ShaderNodeCustomGroup, ShaderNodeGroup)
 from . import shared as shared
 from .PyCoD import xmodel as XModel
 
@@ -141,11 +142,11 @@ def gather_exportable_objects(self, context,
     return armature, obs
 
 
-def get_image_textures(node_tree: bpy.types.NodeTree) -> Iterator[TextureNodeImage]:
+def get_image_textures(node_tree: bpy.types.NodeTree) -> Iterator[ShaderNodeTexImage]:
     for node in node_tree.nodes:  # type: bpy.types.Node
-        if isinstance(node, TextureNodeImage):
+        if isinstance(node, ShaderNodeTexImage):
             yield node
-        elif isinstance(node, (NodeGroup, TextureNodeGroup, NodeCustomGroup)):
+        elif isinstance(node, (NodeGroup, NodeCustomGroup, ShaderNodeGroup, ShaderNodeCustomGroup)):
             yield from get_image_textures(node.node_tree)
 
 
@@ -333,7 +334,6 @@ def save(self, context, filepath,
          use_weight_min=False,
          use_weight_min_threshold=0.010097,
          ):
-
     # Disabled for now
     use_armature_pose = False
     use_frame_start = 0
@@ -465,7 +465,7 @@ def save_model(self, context, filepath, armature, objects,
 
     model = XModel.Model("$export")
 
-    meshes = []
+    meshes = []  # type: list[ExportMesh]
     materials = []  # type: list[bpy.types.Material]
 
     for ob in objects:  # type: bpy.types.Object
