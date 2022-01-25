@@ -18,13 +18,14 @@
 
 # <pep8 compliant>
 
-from typing import Optional
+from typing import Optional, Iterator
 
 import bpy
 import bmesh
 import os
 from itertools import repeat
 
+from bpy.types import NodeGroup, TextureNodeGroup, NodeCustomGroup, TextureNodeImage
 from . import shared as shared
 from .PyCoD import xmodel as XModel
 
@@ -140,7 +141,15 @@ def gather_exportable_objects(self, context,
     return armature, obs
 
 
-def material_gen_image_dict(material):
+def get_image_textures(node_tree: bpy.types.NodeTree) -> Iterator[TextureNodeImage]:
+    for node in node_tree.nodes:  # type: bpy.types.Node
+        if isinstance(node, TextureNodeImage):
+            yield node
+        elif isinstance(node, (NodeGroup, TextureNodeGroup, NodeCustomGroup)):
+            yield from get_image_textures(node.node_tree)
+
+
+def material_gen_image_dict(material: bpy.types.Material):
     '''
     Generate a PyCoD compatible image dict from a given Blender material
     '''
@@ -148,29 +157,23 @@ def material_gen_image_dict(material):
     if not material:
         return out
     unk_count = 0
-    for slot in material.texture_slots:
-        if slot is None:
-            continue
-        texture = slot.texture
-        if texture is None:
-            continue
-        if texture.type == 'IMAGE':
-            try:
-                tex_img = slot.texture.image
-                if tex_img.source != 'FILE':
-                    image = tex_img.name
-                else:
-                    image = os.path.basename(tex_img.filepath)
-            except:
-                image = "<undefined>"
-
-            if slot.use_map_color_diffuse:
-                out['color'] = image
-            elif slot.use_map_normal:
-                out['normal'] = image
+    for texture in get_image_textures(material.node_tree):
+        try:
+            tex_img = texture.image
+            if tex_img.source != 'FILE':
+                image = tex_img.name
             else:
-                out['unk_%d' % unk_count] = image
-                unk_count += 1
+                image = os.path.basename(tex_img.filepath)
+        except:
+            image = "<undefined>"
+
+        if texture.use_map_color_diffuse:
+            out['color'] = image
+        elif texture.use_map_normal:
+            out['normal'] = image
+        else:
+            out['unk_%d' % unk_count] = image
+            unk_count += 1
     return out
 
 
@@ -181,7 +184,7 @@ class ExportMesh(object):
     '''
     __slots__ = ('mesh', 'object', 'matrix', 'weights', 'materials')
 
-    def __init__(self, obj, mesh, model_materials):
+    def __init__(self, obj, mesh, out_model_materials: list[bpy.types.Material]):
         self.mesh = mesh  # type: bpy.types.Mesh
         self.object = obj
         self.matrix = obj.matrix_world
@@ -189,7 +192,7 @@ class ExportMesh(object):
 
         # Used to map mesh materials indices to our model material indices
         self.materials = []
-        self.gen_material_indices(model_materials)
+        self.gen_material_indices(out_model_materials)
 
     def clear(self):
         self.mesh.user_clear()
@@ -221,14 +224,14 @@ class ExportMesh(object):
                 if len(weights) == 0:
                     weights.append((0, 1.0))
 
-    def gen_material_indices(self, model_materials):
+    def gen_material_indices(self, out_model_materials: list[bpy.types.Material]):
         self.materials = [None] * len(self.mesh.materials)  # type: list[Optional[int]]
         for material_index, material in enumerate(self.mesh.materials):  # type: int, bpy.types.Material
-            if material in model_materials:
-                self.materials[material_index] = model_materials.index(material)  # nopep8
+            if material in out_model_materials:
+                self.materials[material_index] = out_model_materials.index(material)  # nopep8
             else:
-                self.materials[material_index] = len(model_materials)
-                model_materials.append(material)
+                self.materials[material_index] = len(out_model_materials)
+                out_model_materials.append(material)
 
     def to_xmodel_mesh(self,
                        use_alpha=False,
@@ -458,7 +461,7 @@ def save_model(self, context, filepath, armature, objects,
     model = XModel.Model("$export")
 
     meshes = []
-    materials = []
+    materials = []  # type: list[bpy.types.Material]
 
     for ob in objects:  # type: bpy.types.Object
         # Set up modifiers whether to apply deformation or not
