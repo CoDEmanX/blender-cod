@@ -54,6 +54,11 @@ def mesh_triangulate(mesh: bpy.types.Mesh, vertex_cleanup: bool):
     mesh.calc_loop_triangles()
 
 
+def mesh_clear(mesh: bpy.types.Mesh, owner: bpy.types.Object):
+    mesh.user_clear()
+    bpy.data.meshes.remove(mesh)
+
+
 def gather_exportable_objects(self, context,
                               use_selection,
                               use_armature,
@@ -201,8 +206,7 @@ class ExportMesh(object):
         self.gen_material_indices(out_model_materials)
 
     def clear(self):
-        self.mesh.user_clear()
-        bpy.data.meshes.remove(self.mesh)
+        mesh_clear(self.mesh, self.object)
 
     def add_weights(self, bone_table, weight_min_threshold=0.0):
         ob = self.object
@@ -270,11 +274,9 @@ class ExportMesh(object):
 
         alpha_default = 1.0
 
-        # mesh.calc_loop_triangles()  # Is this needed?
-
         for vert_index, vert in enumerate(self.mesh.vertices):  # type: int, bpy.types.MeshVertex
             mesh_vert = XModel.Vertex()
-            mesh_vert.offset = tuple(vert.co * global_scale)
+            mesh_vert.offset = tuple(vert.co * global_scale)  # TODO this does NOT scale each x,y,z by the global scale
             mesh_vert.weights = self.weights[vert_index]
             mesh.verts.append(mesh_vert)
 
@@ -461,8 +463,6 @@ def save_model(self, context, filepath, armature, objects,
     # Disabled
     use_armature_pose = False
 
-    scene = context.scene
-
     model = XModel.Model("$export")
 
     meshes = []  # type: list[ExportMesh]
@@ -484,9 +484,10 @@ def save_model(self, context, filepath, armature, objects,
         try:
             # NOTE There's no way to get a 'render' depsgraph for now
             depsgraph = context.evaluated_depsgraph_get()
-            mesh = ob.evaluated_get(depsgraph).to_mesh()
+            eval_ob = ob.evaluated_get(depsgraph)
+            mesh = eval_ob.to_mesh()
         except RuntimeError:
-            mesh = None
+            continue
 
         if mesh is None:
             continue
@@ -507,19 +508,16 @@ def save_model(self, context, filepath, armature, objects,
         # Skip invalid meshes
         if len(mesh.vertices) < 3:
             _skip_notice(ob.name, mesh.name, "Less than 3 vertices")
-            mesh.user_clear()
-            bpy.data.meshes.remove(mesh)
+            mesh_clear(mesh, eval_ob)
             continue
         if len(mesh.loop_triangles) < 1:
             _skip_notice(ob.name, mesh.name, "No faces")
-            mesh.user_clear()
-            bpy.data.meshes.remove(mesh)
+            mesh_clear(mesh, eval_ob)
             continue
 
         if not mesh.uv_layers:
             _skip_notice(ob.name, mesh.name, "No UV texture, not unwrapped?")
-            mesh.user_clear()
-            bpy.data.meshes.remove(mesh)
+            mesh_clear(mesh, eval_ob)
             continue
 
         meshes.append(ExportMesh(ob, mesh, materials))
