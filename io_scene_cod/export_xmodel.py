@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 
-from typing import Optional, Iterator
+from typing import Optional, Iterator, Tuple
 
 import bpy
 import bmesh
@@ -63,7 +63,7 @@ def gather_exportable_objects(self, context,
                               use_selection,
                               use_armature,
                               use_armature_filter=True,
-                              quiet=True):
+                              quiet=True) -> Tuple[Optional[bpy.types.Object], list[bpy.types.Object]]:
     '''
     Gather relevent objects for export
     Returns a tuple in the format (armature, [objects])
@@ -76,8 +76,8 @@ def gather_exportable_objects(self, context,
                               active armature?
     '''  # nopep8
 
-    armature = None
-    obs = []
+    armature = None  # type: Optional[bpy.types.Object]
+    obs = []  # type: list[bpy.types.Object]
 
     # Do a quick check to see if the active object is an armature
     #  If it is - use it as the target armature
@@ -195,11 +195,14 @@ class ExportMesh(object):
     '''
     __slots__ = ('mesh', 'object', 'matrix', 'weights', 'materials')
 
-    def __init__(self, obj, mesh, out_model_materials: list[bpy.types.Material]):
-        self.mesh = mesh  # type: bpy.types.Mesh
+    def __init__(self,
+                 obj: bpy.types.Object,
+                 mesh: bpy.types.Mesh,
+                 out_model_materials: list[bpy.types.Material]):
+        self.mesh = mesh
         self.object = obj
         self.matrix = obj.matrix_world
-        self.weights = [[] for i in repeat(None, len(mesh.vertices))]
+        self.weights = [[] for _ in range(len(mesh.vertices))]  # type: list[list[Tuple[int, float]]]
 
         # Used to map mesh materials indices to our model material indices
         self.materials = []
@@ -208,26 +211,25 @@ class ExportMesh(object):
     def clear(self):
         mesh_clear(self.mesh, self.object)
 
-    def add_weights(self, bone_table, weight_min_threshold=0.0):
+    def add_weights(self, bone_table: list[str], weight_min_threshold=0.0):
         ob = self.object
         if ob.vertex_groups is None:
             for i in range(len(self.weights)):
                 self.weights[i] = [(0, 1.0)]
         else:
             # group_map[group_index] yields bone index or None
-            group_map = [None] * len(ob.vertex_groups)
-            for group_index, group in enumerate(ob.vertex_groups):
+            group_map = [None] * len(ob.vertex_groups)  # type: list[Optional[int]]
+            for group_index, group in enumerate(ob.vertex_groups):  # type: int, bpy.types.VertexGroup
                 if group.name in bone_table:
                     group_map[group_index] = bone_table.index(group.name)
 
             for vert_index, vert in enumerate(self.mesh.vertices):  # type: int, bpy.types.MeshVertex
-                for group in vert.groups:
+                for group in vert.groups:  # type: bpy.types.VertexGroupElement
                     bone_index = group_map[group.group]
                     if bone_index is not None:
                         if group.weight < weight_min_threshold:
                             continue  # Skip weights below the weight threshold
-                        self.weights[vert_index].append(
-                            (bone_index, group.weight))
+                        self.weights[vert_index].append((bone_index, group.weight))
 
             # Any verts without weights will get a 1.0 weight to the root bone
             for weights in self.weights:
@@ -446,7 +448,9 @@ def save(self, context, filepath,
     return result
 
 
-def save_model(self, context, filepath, armature, objects,
+def save_model(self, context, filepath,
+               armature,  # type: Optional[bpy.types.Object]
+               objects,
                target_format,
                version,
                global_scale,
@@ -525,7 +529,7 @@ def save_model(self, context, filepath, armature, objects,
     # Build the bone hierarchy & transform matrices
     if use_armature and armature is not None:
         armature_matrix = armature.matrix_world
-        bone_table = [b.name for b in armature.data.bones]
+        bone_table = [b.name for b in armature.data.bones]  # type: list[str]
         for bone_index, bone in enumerate(armature.data.bones):
             if bone.parent is not None:
                 if bone.parent.name in bone_table:
