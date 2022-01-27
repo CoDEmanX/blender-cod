@@ -55,7 +55,7 @@ def mesh_triangulate(mesh: bpy.types.Mesh, vertex_cleanup: bool):
 
 def mesh_clear(mesh: bpy.types.Mesh, owner: bpy.types.Object):
     mesh.user_clear()
-    bpy.data.meshes.remove(mesh)
+    owner.to_mesh_clear()
 
 
 def gather_exportable_objects(self, context,
@@ -488,7 +488,8 @@ def save_model(self, context, filepath,
             # NOTE There's no way to get a 'render' depsgraph for now
             depsgraph = context.evaluated_depsgraph_get()
             eval_ob = ob.evaluated_get(depsgraph)
-            mesh = eval_ob.to_mesh()
+            # Ensure all data layers are updated (like materials and vertex groups)
+            mesh = eval_ob.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
         except RuntimeError:
             continue
 
@@ -523,7 +524,7 @@ def save_model(self, context, filepath,
             mesh_clear(mesh, eval_ob)
             continue
 
-        meshes.append(ExportMesh(ob, mesh, materials))
+        meshes.append(ExportMesh(eval_ob, mesh, materials))
 
     # Build the bone hierarchy & transform matrices
     if use_armature and armature is not None:
