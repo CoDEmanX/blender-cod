@@ -337,6 +337,7 @@ def save(self, context, filepath,
          use_weight_min=False,
          use_weight_min_threshold=0.010097,
          ):
+
     # Disabled for now
     use_armature_pose = False
     use_frame_start = 0
