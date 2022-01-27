@@ -23,7 +23,6 @@ from typing import Optional, Iterator, Tuple
 import bpy
 import bmesh
 import os
-from itertools import repeat
 
 from bpy.types import (NodeGroup, NodeCustomGroup, ShaderNodeTexImage,
                        ShaderNodeCustomGroup, ShaderNodeGroup)
@@ -64,8 +63,8 @@ def gather_exportable_objects(self, context,
                               use_armature,
                               use_armature_filter=True,
                               quiet=True) -> Tuple[Optional[bpy.types.Object], list[bpy.types.Object]]:
-    '''
-    Gather relevent objects for export
+    """
+    Gather relevant objects for export
     Returns a tuple in the format (armature, [objects])
 
     Args:
@@ -74,7 +73,7 @@ def gather_exportable_objects(self, context,
         use_armature_filter - Only export meshes that are influenced by the active armature
         Automatically include all objects that use the
                               active armature?
-    '''  # nopep8
+    """
 
     armature = None  # type: Optional[bpy.types.Object]
     obs = []  # type: list[bpy.types.Object]
@@ -90,13 +89,13 @@ def gather_exportable_objects(self, context,
     #  the modifiers if we don't know what armature we're using yet
     secondary_objects = []
 
-    def test_armature_filter(object):
+    def test_armature_filter(test_ob: bpy.types.Object):
         """
         Test an object against the armature filter
         returns True if the object passed
         returns false if the object failed the test
         """
-        for modifier in ob.modifiers:
+        for modifier in test_ob.modifiers:
             if modifier.type == 'ARMATURE' and modifier.object == armature:
                 return True
         return False
@@ -278,7 +277,7 @@ class ExportMesh(object):
 
         for vert_index, vert in enumerate(self.mesh.vertices):  # type: int, bpy.types.MeshVertex
             mesh_vert = XModel.Vertex()
-            mesh_vert.offset = tuple(vert.co * global_scale)  # TODO this does NOT scale each x,y,z by the global scale
+            mesh_vert.offset = tuple(vert.co * global_scale)
             mesh_vert.weights = self.weights[vert_index]
             mesh.verts.append(mesh_vert)
 
