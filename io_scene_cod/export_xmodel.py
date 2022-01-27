@@ -18,11 +18,14 @@
 
 # <pep8 compliant>
 
+from typing import Optional, Iterator, Tuple
+
 import bpy
 import bmesh
 import os
-from itertools import repeat
 
+from bpy.types import (NodeGroup, NodeCustomGroup, ShaderNodeTexImage,
+                       ShaderNodeCustomGroup, ShaderNodeGroup)
 from . import shared as shared
 from .PyCoD import xmodel as XModel
 
@@ -32,11 +35,11 @@ def _skip_notice(ob_name, mesh_name, notice):
     print("\nSkipped object \"%s\" (mesh \"%s\"): %s" % vargs)
 
 
-def mesh_triangulate(mesh, vertex_cleanup):
-    '''
+def mesh_triangulate(mesh: bpy.types.Mesh, vertex_cleanup: bool):
+    """
     Based on the function in export_obj.py
     Note: This modifies the passed mesh
-    '''
+    """
 
     bm = bmesh.new()
     bm.from_mesh(mesh)
@@ -46,16 +49,22 @@ def mesh_triangulate(mesh, vertex_cleanup):
     bm.to_mesh(mesh)
     bm.free()
 
-    mesh.update(calc_tessface=True)
+    mesh.update()
+    mesh.calc_loop_triangles()
+
+
+def mesh_clear(mesh: bpy.types.Mesh, owner: bpy.types.Object):
+    mesh.user_clear()
+    owner.to_mesh_clear()
 
 
 def gather_exportable_objects(self, context,
                               use_selection,
                               use_armature,
                               use_armature_filter=True,
-                              quiet=True):
-    '''
-    Gather relevent objects for export
+                              quiet=True) -> Tuple[Optional[bpy.types.Object], list[bpy.types.Object]]:
+    """
+    Gather relevant objects for export
     Returns a tuple in the format (armature, [objects])
 
     Args:
@@ -64,10 +73,10 @@ def gather_exportable_objects(self, context,
         use_armature_filter - Only export meshes that are influenced by the active armature
         Automatically include all objects that use the
                               active armature?
-    '''  # nopep8
+    """
 
-    armature = None
-    obs = []
+    armature = None  # type: Optional[bpy.types.Object]
+    obs = []  # type: list[bpy.types.Object]
 
     # Do a quick check to see if the active object is an armature
     #  If it is - use it as the target armature
@@ -80,13 +89,13 @@ def gather_exportable_objects(self, context,
     #  the modifiers if we don't know what armature we're using yet
     secondary_objects = []
 
-    def test_armature_filter(object):
+    def test_armature_filter(test_ob: bpy.types.Object):
         """
         Test an object against the armature filter
         returns True if the object passed
         returns false if the object failed the test
         """
-        for modifier in ob.modifiers:
+        for modifier in test_ob.modifiers:
             if modifier.type == 'ARMATURE' and modifier.object == armature:
                 return True
         return False
@@ -137,7 +146,15 @@ def gather_exportable_objects(self, context,
     return armature, obs
 
 
-def material_gen_image_dict(material):
+def get_image_textures(node_tree: bpy.types.NodeTree) -> Iterator[ShaderNodeTexImage]:
+    for node in node_tree.nodes:  # type: bpy.types.Node
+        if isinstance(node, ShaderNodeTexImage):
+            yield node
+        elif isinstance(node, (NodeGroup, NodeCustomGroup, ShaderNodeGroup, ShaderNodeCustomGroup)):
+            yield from get_image_textures(node.node_tree)
+
+
+def material_gen_image_dict(material: bpy.types.Material) -> dict:
     '''
     Generate a PyCoD compatible image dict from a given Blender material
     '''
@@ -145,29 +162,28 @@ def material_gen_image_dict(material):
     if not material:
         return out
     unk_count = 0
-    for slot in material.texture_slots:
-        if slot is None:
-            continue
-        texture = slot.texture
-        if texture is None:
-            continue
-        if texture.type == 'IMAGE':
-            try:
-                tex_img = slot.texture.image
-                if tex_img.source != 'FILE':
-                    image = tex_img.name
-                else:
-                    image = os.path.basename(tex_img.filepath)
-            except:
-                image = "<undefined>"
-
-            if slot.use_map_color_diffuse:
-                out['color'] = image
-            elif slot.use_map_normal:
-                out['normal'] = image
+    for texture in get_image_textures(material.node_tree):
+        try:
+            tex_img = texture.image
+            if tex_img.source != 'FILE':
+                image = tex_img.name
             else:
-                out['unk_%d' % unk_count] = image
-                unk_count += 1
+                image = os.path.basename(tex_img.filepath)
+        except:
+            image = "<undefined>"
+
+        # TODO Assume the image texture is being used for color
+        # until an algorithm is developed to determine what each texture is used for
+        out['color'] = image
+
+        # if texture.use_map_color_diffuse:
+        #     out['color'] = image
+        # elif texture.use_map_normal:
+        #     out['normal'] = image
+        # else:
+        #     out['unk_%d' % unk_count] = image
+        #     unk_count += 1
+
     return out
 
 
@@ -178,54 +194,55 @@ class ExportMesh(object):
     '''
     __slots__ = ('mesh', 'object', 'matrix', 'weights', 'materials')
 
-    def __init__(self, obj, mesh, model_materials):
+    def __init__(self,
+                 obj: bpy.types.Object,
+                 mesh: bpy.types.Mesh,
+                 out_model_materials: list[bpy.types.Material]):
         self.mesh = mesh
         self.object = obj
         self.matrix = obj.matrix_world
-        self.weights = [[] for i in repeat(None, len(mesh.vertices))]
+        self.weights = [[] for _ in range(len(mesh.vertices))]  # type: list[list[Tuple[int, float]]]
 
         # Used to map mesh materials indices to our model material indices
         self.materials = []
-        self.gen_material_indices(model_materials)
+        self.gen_material_indices(out_model_materials)
 
     def clear(self):
-        self.mesh.user_clear()
-        bpy.data.meshes.remove(self.mesh)
+        mesh_clear(self.mesh, self.object)
 
-    def add_weights(self, bone_table, weight_min_threshold=0.0):
+    def add_weights(self, bone_table: list[str], weight_min_threshold=0.0):
         ob = self.object
         if ob.vertex_groups is None:
             for i in range(len(self.weights)):
                 self.weights[i] = [(0, 1.0)]
         else:
             # group_map[group_index] yields bone index or None
-            group_map = [None] * len(ob.vertex_groups)
-            for group_index, group in enumerate(ob.vertex_groups):
+            group_map = [None] * len(ob.vertex_groups)  # type: list[Optional[int]]
+            for group_index, group in enumerate(ob.vertex_groups):  # type: int, bpy.types.VertexGroup
                 if group.name in bone_table:
                     group_map[group_index] = bone_table.index(group.name)
 
-            for vert_index, vert in enumerate(self.mesh.vertices):
-                for group in vert.groups:
+            for vert_index, vert in enumerate(self.mesh.vertices):  # type: int, bpy.types.MeshVertex
+                for group in vert.groups:  # type: bpy.types.VertexGroupElement
                     bone_index = group_map[group.group]
                     if bone_index is not None:
                         if group.weight < weight_min_threshold:
                             continue  # Skip weights below the weight threshold
-                        self.weights[vert_index].append(
-                            (bone_index, group.weight))
+                        self.weights[vert_index].append((bone_index, group.weight))
 
             # Any verts without weights will get a 1.0 weight to the root bone
             for weights in self.weights:
                 if len(weights) == 0:
                     weights.append((0, 1.0))
 
-    def gen_material_indices(self, model_materials):
-        self.materials = [None] * len(self.mesh.materials)
-        for material_index, material in enumerate(self.mesh.materials):
-            if material in model_materials:
-                self.materials[material_index] = model_materials.index(material)  # nopep8
+    def gen_material_indices(self, out_model_materials: list[bpy.types.Material]):
+        self.materials = [None] * len(self.mesh.materials)  # type: list[Optional[int]]
+        for material_index, material in enumerate(self.mesh.materials):  # type: int, bpy.types.Material
+            if material in out_model_materials:
+                self.materials[material_index] = out_model_materials.index(material)  # nopep8
             else:
-                self.materials[material_index] = len(model_materials)
-                model_materials.append(material)
+                self.materials[material_index] = len(out_model_materials)
+                out_model_materials.append(material)
 
     def to_xmodel_mesh(self,
                        use_alpha=False,
@@ -240,33 +257,31 @@ class ExportMesh(object):
             self.mesh.calc_normals()
 
         uv_layer = self.mesh.uv_layers.active
-        vc_layer = self.mesh.tessface_vertex_colors.active
+        vc_layer = self.mesh.vertex_colors.active
 
         # Get the vertex layer to use for alpha
-        if not use_alpha:
-            vca_layer = None
-        elif use_alpha_mode == 'PRIMARY':
-            vca_layer = vc_layer
-        elif use_alpha_mode == 'SECONDARY':
-            vca_layer = vc_layer
-            # Get the first vertex color layer that isn't active
-            #  If one can't be found, fallback to the active layer
-            for layer in self.mesh.tessface_vertex_colors:
-                if layer is not vc_layer:
-                    vca_layer = layer
-                    break
+        vca_layer = None  # type: Optional[bpy.types.MeshLoopColorLayer]
+        if use_alpha:
+            if use_alpha_mode == 'PRIMARY':
+                vca_layer = vc_layer
+            elif use_alpha_mode == 'SECONDARY':
+                vca_layer = vc_layer
+                # Get the first vertex color layer that isn't active
+                #  If one can't be found, fallback to the active layer
+                for layer in self.mesh.vertex_colors:  # type: bpy.types.MeshLoopColorLayer
+                    if layer is not vc_layer:
+                        vca_layer = layer
+                        break
 
         alpha_default = 1.0
 
-        # mesh.calc_tessface()  # Is this needed?
-
-        for vert_index, vert in enumerate(self.mesh.vertices):
+        for vert_index, vert in enumerate(self.mesh.vertices):  # type: int, bpy.types.MeshVertex
             mesh_vert = XModel.Vertex()
             mesh_vert.offset = tuple(vert.co * global_scale)
             mesh_vert.weights = self.weights[vert_index]
             mesh.verts.append(mesh_vert)
 
-        for polygon in self.mesh.polygons:
+        for polygon in self.mesh.polygons:  # type: bpy.types.MeshPolygon
             face = XModel.Face(0, 0)
             face.material_id = self.materials[polygon.material_index]
             if vc_layer is not None:
@@ -289,12 +304,12 @@ class ExportMesh(object):
             for i, loop_index in enumerate(polygon.loop_indices):
                 loop = self.mesh.loops[loop_index]
                 uv = uv_layer.data[loop_index].uv
-                vert = XModel.FaceVertex(
+                fvert = XModel.FaceVertex(
                     loop.vertex_index,
                     loop.normal,
                     colors[i],
                     (uv.x, 1.0 - uv.y))
-                face.indices[i] = vert
+                face.indices[i] = fvert
 
             # Fix winding order (again)
             tmp = face.indices[2]
@@ -433,7 +448,9 @@ def save(self, context, filepath,
     return result
 
 
-def save_model(self, context, filepath, armature, objects,
+def save_model(self, context, filepath,
+               armature,  # type: Optional[bpy.types.Object]
+               objects,
                target_format,
                version,
                global_scale,
@@ -442,7 +459,7 @@ def save_model(self, context, filepath, armature, objects,
                use_vertex_colors,
                use_vertex_colors_alpha,
                use_vertex_colors_alpha_mode,
-               use_vertex_cleanup,
+               use_vertex_cleanup: bool,
                use_armature,
                use_weight_min,
                use_weight_min_threshold,
@@ -450,14 +467,12 @@ def save_model(self, context, filepath, armature, objects,
     # Disabled
     use_armature_pose = False
 
-    scene = context.scene
-
     model = XModel.Model("$export")
 
-    meshes = []
-    materials = []
+    meshes = []  # type: list[ExportMesh]
+    materials = []  # type: list[bpy.types.Material]
 
-    for ob in objects:
+    for ob in objects:  # type: bpy.types.Object
         # Set up modifiers whether to apply deformation or not
         mod_states = []
         for mod in ob.modifiers:
@@ -473,9 +488,11 @@ def save_model(self, context, filepath, armature, objects,
         try:
             # NOTE There's no way to get a 'render' depsgraph for now
             depsgraph = context.evaluated_depsgraph_get()
-            mesh = ob.evaluated_get(depsgraph).to_mesh()
+            eval_ob = ob.evaluated_get(depsgraph)
+            # Ensure all data layers are updated (like materials and vertex groups)
+            mesh = eval_ob.to_mesh(preserve_all_data_layers=True, depsgraph=depsgraph)
         except RuntimeError:
-            mesh = None
+            continue
 
         if mesh is None:
             continue
@@ -496,27 +513,24 @@ def save_model(self, context, filepath, armature, objects,
         # Skip invalid meshes
         if len(mesh.vertices) < 3:
             _skip_notice(ob.name, mesh.name, "Less than 3 vertices")
-            mesh.user_clear()
-            bpy.data.meshes.remove(mesh)
+            mesh_clear(mesh, eval_ob)
             continue
-        if len(mesh.tessfaces) < 1:
+        if len(mesh.loop_triangles) < 1:
             _skip_notice(ob.name, mesh.name, "No faces")
-            mesh.user_clear()
-            bpy.data.meshes.remove(mesh)
+            mesh_clear(mesh, eval_ob)
             continue
 
-        if not mesh.tessface_uv_textures:
+        if not mesh.uv_layers:
             _skip_notice(ob.name, mesh.name, "No UV texture, not unwrapped?")
-            mesh.user_clear()
-            bpy.data.meshes.remove(mesh)
+            mesh_clear(mesh, eval_ob)
             continue
 
-        meshes.append(ExportMesh(ob, mesh, materials))
+        meshes.append(ExportMesh(eval_ob, mesh, materials))
 
     # Build the bone hierarchy & transform matrices
     if use_armature and armature is not None:
         armature_matrix = armature.matrix_world
-        bone_table = [b.name for b in armature.data.bones]
+        bone_table = [b.name for b in armature.data.bones]  # type: list[str]
         for bone_index, bone in enumerate(armature.data.bones):
             if bone.parent is not None:
                 if bone.parent.name in bone_table:

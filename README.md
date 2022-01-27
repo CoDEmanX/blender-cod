@@ -67,7 +67,7 @@ You can basically import any supported 3d model into Blender (e.g. Blender files
   
 ## Requirements ##
 
-  * Blender 2.78 or later - [blender.org](http://www.blender.org/download/)
+  * Blender 2.80 or later - [blender.org](https://www.blender.org/download/)
 
 
 ## Installation ##

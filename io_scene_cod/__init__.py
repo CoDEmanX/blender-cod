@@ -30,7 +30,7 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 
 from bpy.utils import register_class, unregister_class
 
-import time
+from time import perf_counter as clock
 import os
 
 bl_info = {
@@ -151,7 +151,7 @@ else:
     from . import PyCoD
 
 
-class COD_MT_import_xmodel(bpy.types.Operator, ImportHelper):
+class COD_MT_import_xmodel(Operator, ImportHelper):
     bl_idname = "import_scene.xmodel"
     bl_label = "Import XModel"
     bl_description = "Import a CoD XMODEL_EXPORT / XMODEL_BIN File"
@@ -253,7 +253,7 @@ class COD_MT_import_xmodel(bpy.types.Operator, ImportHelper):
 
     def execute(self, context):
         from . import import_xmodel
-        start_time = time.clock()
+        start_time = clock()
 
         keywords = self.as_keywords(ignore=("filter_glob",
                                             "check_existing",
@@ -263,15 +263,15 @@ class COD_MT_import_xmodel(bpy.types.Operator, ImportHelper):
 
         if not result:
             self.report({'INFO'}, "Import finished in %.4f sec." %
-                        (time.clock() - start_time))
+                        (clock() - start_time))
             return {'FINISHED'}
         else:
             self.report({'ERROR'}, result)
             return {'CANCELLED'}
 
     @classmethod
-    def poll(self, context):
-        return (context.scene is not None)
+    def poll(cls, context):
+        return context.scene is not None
 
     def draw(self, context):
         layout = self.layout
@@ -308,7 +308,7 @@ class COD_MT_import_xmodel(bpy.types.Operator, ImportHelper):
             sub.prop(self, 'merge_skeleton')
 
 
-class COD_MT_import_xanim(bpy.types.Operator, ImportHelper):
+class COD_MT_import_xanim(Operator, ImportHelper):
     bl_idname = "import_scene.xanim"
     bl_label = "Import XAnim"
     bl_description = "Import a CoD XANIM_EXPORT / XANIM_BIN File"
@@ -396,7 +396,7 @@ class COD_MT_import_xanim(bpy.types.Operator, ImportHelper):
 
     def execute(self, context):
         from . import import_xanim
-        start_time = time.clock()
+        start_time = clock()
 
         ignored_properties = ("filter_glob", "files", "apply_unit_scale")
         result = import_xanim.load(
@@ -407,7 +407,7 @@ class COD_MT_import_xanim(bpy.types.Operator, ImportHelper):
 
         if not result:
             self.report({'INFO'}, "Import finished in %.4f sec." %
-                        (time.clock() - start_time))
+                        (clock() - start_time))
             return {'FINISHED'}
         else:
             self.report({'ERROR'}, result)
@@ -447,7 +447,7 @@ class COD_MT_import_xanim(bpy.types.Operator, ImportHelper):
         layout.prop(self, 'anim_offset')
 
 
-class COD_MT_export_xmodel(bpy.types.Operator, ExportHelper):
+class COD_MT_export_xmodel(Operator, ExportHelper):
     bl_idname = "export_scene.xmodel"
     bl_label = 'Export XModel'
     bl_description = "Export a CoD XMODEL_EXPORT / XMODEL_BIN File"
@@ -604,7 +604,7 @@ class COD_MT_export_xmodel(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         from . import export_xmodel
-        start_time = time.clock()
+        start_time = clock()
 
         ignore = ("filter_glob", "check_existing")
         result = export_xmodel.save(self, context,
@@ -612,15 +612,15 @@ class COD_MT_export_xmodel(bpy.types.Operator, ExportHelper):
 
         if not result:
             self.report({'INFO'}, "Export finished in %.4f sec." %
-                        (time.clock() - start_time))
+                        (clock() - start_time))
             return {'FINISHED'}
         else:
             self.report({'ERROR'}, result)
             return {'CANCELLED'}
 
     @classmethod
-    def poll(self, context):
-        return (context.scene is not None)
+    def poll(cls, context):
+        return context.scene is not None
 
     def check(self, context):
         '''
@@ -725,7 +725,7 @@ class COD_MT_export_xmodel(bpy.types.Operator, ExportHelper):
         sub.prop(self, 'use_weight_min_threshold')
 
 
-class COD_MT_export_xanim(bpy.types.Operator, ExportHelper):
+class COD_MT_export_xanim(Operator, ExportHelper):
     bl_idname = "export_scene.xanim"
     bl_label = 'Export XAnim'
     bl_description = "Export a CoD XANIM_EXPORT / XANIM_BIN File"
@@ -865,14 +865,14 @@ class COD_MT_export_xanim(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         from . import export_xanim
-        start_time = time.clock()
+        start_time = clock()
         result = export_xanim.save(
             self,
             context,
             **self.as_keywords(ignore=("filter_glob", "check_existing")))
 
         if not result:
-            msg = "Export finished in %.4f sec." % (time.clock() - start_time)
+            msg = "Export finished in %.4f sec." % (clock() - start_time)
             self.report({'INFO'}, msg)
             return {'FINISHED'}
         else:
@@ -880,8 +880,8 @@ class COD_MT_export_xanim(bpy.types.Operator, ExportHelper):
             return {'CANCELLED'}
 
     @classmethod
-    def poll(self, context):
-        return (context.scene is not None)
+    def poll(cls, context):
+        return context.scene is not None
 
     def check(self, context):
         '''
@@ -1065,7 +1065,7 @@ classes = (
 
 def register():
     for cls in classes:
-        bpy.utils.register_class(cls)
+        register_class(cls)
 
     # __name__ is the same as the package name (io_scene_cod)
     preferences = bpy.context.preferences.addons[__name__].preferences
@@ -1098,7 +1098,7 @@ def unregister():
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export_submenu)
 
     for cls in classes:
-        bpy.utils.unregister_class(cls)
+        unregister_class(cls)
 
 
 if __name__ == "__main__":
