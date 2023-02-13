@@ -250,7 +250,7 @@ class ImportXModel(bpy.types.Operator, ImportHelper):
 
     def execute(self, context):
         from . import import_xmodel
-        start_time = time.clock()
+        start_time = time.process_time()
 
         keywords = self.as_keywords(ignore=("filter_glob",
                                             "check_existing",
@@ -260,7 +260,7 @@ class ImportXModel(bpy.types.Operator, ImportHelper):
 
         if not result:
             self.report({'INFO'}, "Import finished in %.4f sec." %
-                        (time.clock() - start_time))
+                        (time.process_time() - start_time))
             return {'FINISHED'}
         else:
             self.report({'ERROR'}, result)
@@ -393,7 +393,7 @@ class ImportXAnim(bpy.types.Operator, ImportHelper):
 
     def execute(self, context):
         from . import import_xanim
-        start_time = time.clock()
+        start_time = time.process_time()
 
         ignored_properties = ("filter_glob", "files", "apply_unit_scale")
         result = import_xanim.load(
@@ -404,7 +404,7 @@ class ImportXAnim(bpy.types.Operator, ImportHelper):
 
         if not result:
             self.report({'INFO'}, "Import finished in %.4f sec." %
-                        (time.clock() - start_time))
+                        (time.process_time() - start_time))
             return {'FINISHED'}
         else:
             self.report({'ERROR'}, result)
@@ -601,7 +601,7 @@ class ExportXModel(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         from . import export_xmodel
-        start_time = time.clock()
+        start_time = time.process_time()
 
         ignore = ("filter_glob", "check_existing")
         result = export_xmodel.save(self, context,
@@ -609,7 +609,7 @@ class ExportXModel(bpy.types.Operator, ExportHelper):
 
         if not result:
             self.report({'INFO'}, "Export finished in %.4f sec." %
-                        (time.clock() - start_time))
+                        (time.process_time() - start_time))
             return {'FINISHED'}
         else:
             self.report({'ERROR'}, result)
@@ -861,14 +861,14 @@ class ExportXAnim(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         from . import export_xanim
-        start_time = time.clock()
+        start_time = time.process_time()
         result = export_xanim.save(
             self,
             context,
             **self.as_keywords(ignore=("filter_glob", "check_existing")))
 
         if not result:
-            msg = "Export finished in %.4f sec." % (time.clock() - start_time)
+            msg = "Export finished in %.4f sec." % (time.process_time() - start_time)
             self.report({'INFO'}, msg)
             return {'FINISHED'}
         else:
